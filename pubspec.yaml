@@ -26,5 +26,29 @@ flutter:
     - assets/icons/feed/
     - assets/illustrations/
     - assets/pictures/fox/
+    - assets/pictures/animals/animals_1/
+    - assets/pictures/animals/animals_2/
+    - assets/pictures/animals/animals_3/
+    - assets/pictures/animals/animals_4/
+    - assets/pictures/animals/animals_5/
+    - assets/pictures/animals/animals_6/
+    - assets/pictures/animals/animals_7/
+    - assets/pictures/animals/animals_8/
+    - assets/pictures/nature/nature_1/
+    - assets/pictures/nature/nature_2/
+    - assets/pictures/nature/nature_3/
+    - assets/pictures/nature/nature_4/
+    - assets/pictures/nature/nature_5/
+    - assets/pictures/nature/nature_6/
+    - assets/pictures/nature/nature_7/
+    - assets/pictures/nature/nature_8/
+    - assets/pictures/fantasy/fantasy_1/
+    - assets/pictures/fantasy/fantasy_2/
+    - assets/pictures/fantasy/fantasy_3/
+    - assets/pictures/fantasy/fantasy_4/
+    - assets/pictures/fantasy/fantasy_5/
+    - assets/pictures/fantasy/fantasy_6/
+    - assets/pictures/fantasy/fantasy_7/
+    - assets/pictures/fantasy/fantasy_8/
   shaders:
     - shaders/coloring.frag

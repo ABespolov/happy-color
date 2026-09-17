@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:happy_color/core/theme/app_colors.dart';
+import 'package:happy_color/features/coloring/presentation/pages/coloring_page.dart';
 import 'package:happy_color/features/library/domain/entities/library_picture.dart';
 
 class LibraryPictureCard extends StatelessWidget {
@@ -9,16 +9,19 @@ class LibraryPictureCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: const Center(
-        child: Icon(
-          Icons.image_outlined,
-          size: 40,
-          color: AppColors.placeholder,
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => ColoringPage(assetDir: picture.assetDir),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Image.asset('${picture.assetDir}/lines.png'),
         ),
       ),
     );

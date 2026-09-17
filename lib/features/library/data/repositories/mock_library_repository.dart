@@ -9,12 +9,28 @@ class MockLibraryRepository implements LibraryRepository {
 
   static const _categories = [
     LibraryCategory(id: 'all', title: 'All'),
-    LibraryCategory(id: 'for_you', title: 'For You'),
     LibraryCategory(id: 'popular', title: 'Popular'),
     LibraryCategory(id: 'animals', title: 'Animals'),
     LibraryCategory(id: 'nature', title: 'Nature'),
     LibraryCategory(id: 'fantasy', title: 'Fantasy'),
   ];
+
+  /// Categories that own pictures; `all` and `popular` are selections.
+  static const _contentCategories = ['animals', 'nature', 'fantasy'];
+
+  static const _picturesPerCategory = 8;
+
+  // Temporary: every asset folder is a copy of the test fox.
+  static final _picturesByCategory = {
+    for (final category in _contentCategories)
+      category: [
+        for (var i = 1; i <= _picturesPerCategory; i++)
+          LibraryPicture(
+            id: '${category}_$i',
+            assetDir: 'assets/pictures/$category/${category}_$i',
+          ),
+      ],
+  };
 
   @override
   Future<List<LibraryBanner>> getBanners() async => [
@@ -26,7 +42,13 @@ class MockLibraryRepository implements LibraryRepository {
   Future<List<LibraryCategory>> getCategories() async => _categories;
 
   @override
-  Future<List<LibraryPicture>> getPictures(String categoryId) async => [
-    for (var i = 0; i < 12; i++) LibraryPicture(id: '$categoryId-$i'),
-  ];
+  Future<List<LibraryPicture>> getPictures(
+    String categoryId,
+  ) async => switch (categoryId) {
+    'all' => [for (final pictures in _picturesByCategory.values) ...pictures],
+    'popular' => [
+      for (final pictures in _picturesByCategory.values) ...pictures.take(3),
+    ],
+    _ => _picturesByCategory[categoryId] ?? const [],
+  };
 }
