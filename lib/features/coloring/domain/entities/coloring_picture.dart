@@ -88,7 +88,11 @@ class ColoringPicture {
       regions: [
         for (final r in json['regions'] as List)
           PictureRegion(
-            path: Path()..addPolygon(_points(doubles(r['points'])), true),
+            path: _regionPath(
+              doubles(r['points']),
+              holes: [for (final h in r['holes'] as List? ?? []) doubles(h)],
+              parts: [for (final p in r['parts'] as List? ?? []) doubles(p)],
+            ),
             triangles: Float32List.fromList(doubles(r['triangles'])),
             colorIndex: r['color'] as int,
             labelAt: Offset(r['label'][0].toDouble(), r['label'][1].toDouble()),
@@ -120,6 +124,21 @@ class ColoringPicture {
     }
     return null;
   }
+}
+
+/// Outline of a region: its main polygon, [holes] cut out of it that belong
+/// to other regions, and separate [parts] when the region is split in pieces.
+Path _regionPath(
+  List<double> outline, {
+  required List<List<double>> holes,
+  required List<List<double>> parts,
+}) {
+  final path = Path()..addPolygon(_points(outline), true);
+  if (holes.isNotEmpty) path.fillType = PathFillType.evenOdd;
+  for (final ring in [...holes, ...parts]) {
+    path.addPolygon(_points(ring), true);
+  }
+  return path;
 }
 
 List<Offset> _points(List<double> xy) => [

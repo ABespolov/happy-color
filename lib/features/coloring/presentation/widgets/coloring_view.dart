@@ -9,13 +9,22 @@ import 'package:happy_color/features/coloring/domain/entities/coloring_picture.d
 import 'package:happy_color/features/coloring/presentation/painters/artwork_reveal_painter.dart';
 import 'package:happy_color/features/coloring/presentation/painters/highlight_painter.dart';
 import 'package:happy_color/features/coloring/presentation/painters/labels_painter.dart';
+import 'package:happy_color/features/coloring/presentation/painters/line_art_painter.dart';
 import 'package:happy_color/features/coloring/presentation/painters/outline_painter.dart';
 
 class ColoringView extends StatefulWidget {
-  const ColoringView({super.key, required this.picture, required this.artwork});
+  const ColoringView({
+    super.key,
+    required this.picture,
+    required this.artwork,
+    this.lines,
+  });
 
   final ColoringPicture picture;
   final ui.Image artwork;
+
+  /// Line art drawn over the picture; region outlines are stroked without it.
+  final ui.Image? lines;
 
   @override
   State<ColoringView> createState() => _ColoringViewState();
@@ -91,13 +100,14 @@ class _ColoringViewState extends State<ColoringView>
                                         _artwork,
                                       ),
                                     ),
-                                    _layer(
-                                      OutlinePainter(
+                                    _layer(switch (widget.lines) {
+                                      final lines? => LineArtPainter(lines),
+                                      null => OutlinePainter(
                                         picture: picture,
                                         transform: _transform,
                                         fit: fit,
                                       ),
-                                    ),
+                                    }),
                                     _layer(
                                       LabelsPainter(
                                         controller: _controller,
