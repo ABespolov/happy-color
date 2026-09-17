@@ -21,7 +21,7 @@ class LibraryPictureCard extends StatelessWidget {
         ),
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Image.asset('${picture.assetDir}/lines.png'),
+          child: Image.asset('${picture.assetDir}/lines.webp'),
         ),
       ),
     );

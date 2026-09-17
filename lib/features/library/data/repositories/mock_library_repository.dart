@@ -45,7 +45,7 @@ class MockLibraryRepository implements LibraryRepository {
       LibraryBanner(
         id: category,
         title: category,
-        imageAsset: 'assets/banners/$category.png',
+        imageAsset: 'assets/banners/$category.webp',
       ),
   ];
 

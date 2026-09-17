@@ -9,8 +9,8 @@ exported as the artwork revealed while coloring.
 Writes to OUT_DIR:
 - picture.json: palette, and for each region its color, label spot and bounds;
 - regions.png: region map, pixel RGB = region index + 1 (R low byte, G high);
-- artwork.png: the colored picture;
-- lines.png: the line art as black lines on a transparent background;
+- artwork.webp: the colored picture (lossy, quality 95);
+- lines.webp: the line art as black lines on a transparent background (lossless);
 - preview.png: region borders with color numbers, for checking.
 """
 
@@ -236,11 +236,11 @@ def main():
     (out / "picture.json").write_text(json.dumps(picture, separators=(",", ":")))
     # Full source resolution keeps the artwork and lines sharp when zoomed.
     cv2.imwrite(str(out / "regions.png"), region_map(regions))
-    cv2.imwrite(str(out / "artwork.png"), cv2.imread(args.color))
+    cv2.imwrite(str(out / "artwork.webp"), cv2.imread(args.color), [cv2.IMWRITE_WEBP_QUALITY, 95])
     ink = 255 - cv2.imread(args.lines, cv2.IMREAD_GRAYSCALE)
     lines_rgba = np.zeros((*ink.shape, 4), np.uint8)
     lines_rgba[..., 3] = ink  # Black lines on a transparent background.
-    cv2.imwrite(str(out / "lines.png"), lines_rgba)
+    cv2.imwrite(str(out / "lines.webp"), lines_rgba, [cv2.IMWRITE_WEBP_QUALITY, 101])  # >100 = lossless
     preview(regions, region_list, palette, out / "preview.png")
     print(f"{len(region_list)} regions, {len(palette)} colors -> {out}")
 

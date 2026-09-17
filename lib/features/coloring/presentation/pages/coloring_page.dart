@@ -33,8 +33,8 @@ class _ColoringPageState extends State<ColoringPage> {
       ui.FragmentProgram.fromAsset('shaders/coloring.frag'),
       rootBundle.loadString('$dir/picture.json'),
       _image('$dir/regions.png'),
-      _image('$dir/artwork.png'),
-      _image('$dir/lines.png'),
+      _image('$dir/artwork.webp'),
+      _image('$dir/lines.webp'),
     ).wait;
     final rgba = await regionMap.toByteData();
     return (

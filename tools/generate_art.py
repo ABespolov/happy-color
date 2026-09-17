@@ -53,7 +53,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("subject", help="what the picture shows")
     parser.add_argument("out")
-    parser.add_argument("--size", default="1024x1024")
+    parser.add_argument("--size", default="2048x2048")
     args = parser.parse_args()
 
     out = Path(args.out)
