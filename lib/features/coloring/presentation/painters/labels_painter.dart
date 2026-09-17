@@ -39,32 +39,29 @@ class LabelsPainter extends CustomPainter {
 
     final transforms = <double>[];
     final rects = <double>[];
-    for (final cell in picture.cells) {
-      if (!cell.bounds.overlaps(visible)) continue;
-      for (final id in cell.regionIds) {
-        final region = picture.regions[id];
-        if (region.labelRadius * pixelsPerUnit < _fontPx ||
-            !visible.contains(region.labelAt) ||
-            !controller.isEmpty(id)) {
-          continue;
-        }
-
-        final sprite = labels.spriteOf(
-          region.colorIndex,
-          selected: region.colorIndex == selected,
-        );
-        final scale = _fontPx / pixelsPerUnit / LabelAtlas.fontSize;
-        transforms
-          ..add(scale)
-          ..add(0)
-          ..add(region.labelAt.dx - scale * sprite.width / 2)
-          ..add(region.labelAt.dy - scale * sprite.height / 2);
-        rects
-          ..add(sprite.left)
-          ..add(sprite.top)
-          ..add(sprite.right)
-          ..add(sprite.bottom);
+    for (var id = 0; id < picture.regions.length; id++) {
+      final region = picture.regions[id];
+      if (region.labelRadius * pixelsPerUnit < _fontPx ||
+          !visible.contains(region.labelAt) ||
+          !controller.isEmpty(id)) {
+        continue;
       }
+
+      final sprite = labels.spriteOf(
+        region.colorIndex,
+        selected: region.colorIndex == selected,
+      );
+      final scale = _fontPx / pixelsPerUnit / LabelAtlas.fontSize;
+      transforms
+        ..add(scale)
+        ..add(0)
+        ..add(region.labelAt.dx - scale * sprite.width / 2)
+        ..add(region.labelAt.dy - scale * sprite.height / 2);
+      rects
+        ..add(sprite.left)
+        ..add(sprite.top)
+        ..add(sprite.right)
+        ..add(sprite.bottom);
     }
     if (rects.isEmpty) return;
 

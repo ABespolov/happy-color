@@ -6,10 +6,18 @@ import 'package:flutter/services.dart';
 import 'package:happy_color/features/coloring/domain/entities/coloring_picture.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/coloring_view.dart';
 
+typedef _Scene = ({
+  ColoringPicture picture,
+  ui.FragmentShader shader,
+  ui.Image regionMap,
+  ui.Image artwork,
+  ui.Image lines,
+});
+
 class ColoringPage extends StatefulWidget {
   const ColoringPage({super.key, required this.assetDir});
 
-  /// Folder with `picture.json` and `artwork.png`.
+  /// Folder with the files written by `tools/generate_picture.py`.
   final String assetDir;
 
   @override
@@ -19,14 +27,27 @@ class ColoringPage extends StatefulWidget {
 class _ColoringPageState extends State<ColoringPage> {
   late final _scene = _load();
 
-  Future<(ColoringPicture, ui.Image, ui.Image?)> _load() async {
+  Future<_Scene> _load() async {
     final dir = widget.assetDir;
-    final json = await rootBundle.loadString('$dir/picture.json');
+    final (program, json, regionMap, artwork, lines) = await (
+      ui.FragmentProgram.fromAsset('shaders/coloring.frag'),
+      rootBundle.loadString('$dir/picture.json'),
+      _image('$dir/regions.png'),
+      _image('$dir/artwork.png'),
+      _image('$dir/lines.png'),
+    ).wait;
+    final rgba = await regionMap.toByteData();
     return (
-      ColoringPicture.fromJson(json),
-      await _image('$dir/artwork.png'),
-      await _image('$dir/lines.png')
-          .then<ui.Image?>((i) => i, onError: (_) => null),
+      picture: ColoringPicture.fromJson(
+        json,
+        regionMapRgba: rgba!,
+        mapWidth: regionMap.width,
+        mapHeight: regionMap.height,
+      ),
+      shader: program.fragmentShader(),
+      regionMap: regionMap,
+      artwork: artwork,
+      lines: lines,
     );
   }
 
@@ -38,8 +59,10 @@ class _ColoringPageState extends State<ColoringPage> {
   @override
   void dispose() {
     _scene.then((scene) {
-      scene.$2.dispose();
-      scene.$3?.dispose();
+      scene.shader.dispose();
+      scene.regionMap.dispose();
+      scene.artwork.dispose();
+      scene.lines.dispose();
     });
     super.dispose();
   }
@@ -56,8 +79,14 @@ class _ColoringPageState extends State<ColoringPage> {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }
-          final (picture, artwork, lines) = snapshot.requireData;
-          return ColoringView(picture: picture, artwork: artwork, lines: lines);
+          final scene = snapshot.requireData;
+          return ColoringView(
+            picture: scene.picture,
+            shader: scene.shader,
+            regionMap: scene.regionMap,
+            artwork: scene.artwork,
+            lines: scene.lines,
+          );
         },
       ),
     );

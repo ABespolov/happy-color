@@ -6,9 +6,12 @@ Regions are the closed areas between the lines of LINES.png. Each region gets
 the palette color closest to its dominant color in COLOR.png, which is also
 exported as the artwork revealed while coloring.
 
-Writes OUT_DIR/picture.json (format read by ColoringPicture.fromJson),
-OUT_DIR/artwork.png, OUT_DIR/lines.png (the line art drawn over the picture)
-and OUT_DIR/preview.png (outlines with color numbers).
+Writes to OUT_DIR:
+- picture.json: palette, and for each region its color, label spot and bounds;
+- regions.png: region map, pixel RGB = region index + 1 (R low byte, G high);
+- artwork.png: the colored picture;
+- lines.png: the line art as black lines on a transparent background;
+- preview.png: region borders with color numbers, for checking.
 """
 
 import argparse
@@ -16,11 +19,7 @@ import json
 from pathlib import Path
 
 import cv2
-import mapbox_earcut as earcut
 import numpy as np
-from shapely.geometry import Polygon
-from shapely.ops import unary_union
-from shapely.validation import make_valid
 from sklearn.cluster import KMeans
 
 SIZE = 1000  # Picture coordinate space.
@@ -154,29 +153,6 @@ def build_palette(medians, areas, colors):
     return ["#%02X%02X%02X" % tuple(c) for c in rgb], rank[km.labels_]
 
 
-def region_polygons(mask):
-    """Polygons of a region, largest first. Contours run through the centres of
-    the border pixels; growing them by half a pixel moves every edge onto the
-    boundary shared with the neighbour, so adjacent regions meet in one line."""
-    contours, hierarchy = cv2.findContours(mask, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
-    if not contours:
-        return []
-    hierarchy = hierarchy[0]
-    parts = []
-    for i, h in enumerate(hierarchy):
-        if h[3] >= 0 or len(contours[i]) < 3:
-            continue
-        holes = [
-            contours[k].reshape(-1, 2) for k, hk in enumerate(hierarchy)
-            if hk[3] == i and len(contours[k]) >= 3
-        ]
-        parts.append(Polygon(contours[i].reshape(-1, 2), holes))
-    shape = make_valid(unary_union(parts)).buffer(0.5, join_style="mitre", mitre_limit=2)
-    shape = shape.simplify(0.8, preserve_topology=True)
-    polygons = [g for g in getattr(shape, "geoms", [shape]) if isinstance(g, Polygon) and g.area >= 2]
-    return sorted(polygons, key=lambda g: -g.area)
-
-
 def label_spot(mask):
     """Point deepest inside the region and its distance to the border."""
     dist = cv2.distanceTransform(np.pad(mask, 1), cv2.DIST_L2, 5)[1:-1, 1:-1]
@@ -189,35 +165,23 @@ def export_regions(regions, color_ids):
     for r in range(regions.max() + 1):
         ys, xs = np.nonzero(regions == r)
         x0, y0, x1, y1 = xs.min(), ys.min(), xs.max() + 1, ys.max() + 1
-        # One pixel of margin so contours around the crop edge stay closed.
-        mask = np.zeros((y1 - y0 + 2, x1 - x0 + 2), np.uint8)
-        mask[ys - y0 + 1, xs - x0 + 1] = 1
-        shift = np.array([x0 - 1, y0 - 1], np.float64)
-        polygons = region_polygons(mask)
-        if not polygons:
-            continue
-        ring = lambda coords: np.asarray(coords, np.float64)[:-1] + shift + 0.5
-        triangles = []
-        for polygon in polygons:
-            rings = [ring(polygon.exterior.coords)] + [ring(h.coords) for h in polygon.interiors]
-            vertices = np.concatenate(rings)
-            ends = np.cumsum([len(r) for r in rings]).astype(np.uint32)
-            triangles.append(vertices[earcut.triangulate_float64(vertices, ends)])
-        main = polygons[0]
+        mask = np.zeros((y1 - y0, x1 - x0), np.uint8)
+        mask[ys - y0, xs - x0] = 1
         lx, ly, lr = label_spot(mask)
-        round1 = lambda a: [round(float(v), 1) for v in np.asarray(a).ravel()]
-        entry = {
+        out.append({
             "color": int(color_ids[r]),
-            "points": round1(ring(main.exterior.coords)),
-            "triangles": round1(np.concatenate(triangles)),
-            "label": [round(lx + x0 - 1, 1), round(ly + y0 - 1, 1), round(lr, 1)],
-        }
-        if main.interiors:
-            entry["holes"] = [round1(ring(h.coords)) for h in main.interiors]
-        if len(polygons) > 1:
-            entry["parts"] = [round1(ring(p.exterior.coords)) for p in polygons[1:]]
-        out.append(entry)
+            "label": [round(lx + x0 + 0.5, 1), round(ly + y0 + 0.5, 1), round(lr, 1)],
+            "bounds": [int(x0), int(y0), int(x1), int(y1)],
+        })
     return out
+
+
+def region_map(regions):
+    ids = regions.astype(np.int64) + 1
+    image = np.zeros((*regions.shape, 3), np.uint8)
+    image[..., 2] = ids & 0xFF         # R (OpenCV stores BGR)
+    image[..., 1] = (ids >> 8) & 0xFF  # G
+    return image
 
 
 def preview(regions, region_list, palette, path):
@@ -267,10 +231,11 @@ def main():
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    picture = {"width": float(SIZE), "height": float(SIZE), "outlineWidth": 1.4,
+    picture = {"width": float(SIZE), "height": float(SIZE),
                "palette": palette, "regions": region_list}
     (out / "picture.json").write_text(json.dumps(picture, separators=(",", ":")))
     # Full source resolution keeps the artwork and lines sharp when zoomed.
+    cv2.imwrite(str(out / "regions.png"), region_map(regions))
     cv2.imwrite(str(out / "artwork.png"), cv2.imread(args.color))
     ink = 255 - cv2.imread(args.lines, cv2.IMREAD_GRAYSCALE)
     lines_rgba = np.zeros((*ink.shape, 4), np.uint8)

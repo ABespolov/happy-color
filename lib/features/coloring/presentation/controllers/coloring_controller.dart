@@ -1,4 +1,4 @@
-import 'dart:ui';
+import 'dart:ui' as ui;
 
 import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
@@ -8,25 +8,37 @@ import 'package:happy_color/features/coloring/domain/entities/coloring_picture.d
 
 class ColoringController extends ChangeNotifier {
   ColoringController({required this.picture, required TickerProvider vsync})
-    : _state = Uint8List(picture.regions.length) {
+    : _state = Uint8List(picture.regions.length),
+      stateWidth = _stateWidthFor(picture.regions.length),
+      stateHeight =
+          (picture.regions.length / _stateWidthFor(picture.regions.length))
+              .ceil() {
     animations = FillAnimations(vsync: vsync, onCompleted: _completeFills);
+    _stateBytes = Uint8List(stateWidth * stateHeight * 4);
+    for (var id = 0; id < picture.regions.length; id++) {
+      _stateBytes[id * 4 + 2] = picture.regions[id].colorIndex;
+      _stateBytes[id * 4 + 3] = 255;
+    }
+    _uploadState();
   }
 
   static const _empty = 0, _animating = 1, _filled = 2;
+
+  static int _stateWidthFor(int regions) => regions.clamp(1, 1024);
 
   final ColoringPicture picture;
   final selectedColor = ValueNotifier<int>(0);
   late final FillAnimations animations;
 
-  final Uint8List _state;
+  /// Per-region state for the shader, one texel per region:
+  /// R = filled, G = animation slot + 1, B = color index.
+  final stateImage = ValueNotifier<ui.Image?>(null);
+  final int stateWidth;
+  final int stateHeight;
+  late final Uint8List _stateBytes;
+  var _uploadVersion = 0;
 
-  /// Filled triangles per [ColoringPicture.cells] entry, so a fill only
-  /// rebuilds the cell it touched.
-  late final filledByCell = List<Vertices?>.filled(picture.cells.length, null);
-  late final _highlightByColor = List<Vertices?>.filled(
-    picture.palette.length,
-    null,
-  );
+  final Uint8List _state;
 
   bool isEmpty(int regionId) => _state[regionId] == _empty;
 
@@ -35,25 +47,22 @@ class ColoringController extends ChangeNotifier {
     return ids.where((id) => _state[id] == _filled).length / ids.length;
   }
 
-  Vertices highlightVertices(int colorIndex) =>
-      _highlightByColor[colorIndex] ??= _vertices(
-        picture.regionsByColor[colorIndex],
-      );
-
-  Vertices _vertices(Iterable<int> ids) => Vertices.raw(
-    VertexMode.triangles,
-    Float32List.fromList([
-      for (final id in ids) ...picture.regions[id].triangles,
-    ]),
-  );
-
   void tapAt(Offset scenePoint) {
     final id = picture.regionAt(scenePoint);
     if (id == null || _state[id] != _empty) return;
     if (picture.regions[id].colorIndex != selectedColor.value) return;
-    _state[id] = _animating;
+
     final b = picture.regions[id].bounds;
-    animations.start(id, scenePoint, Offset(b.width, b.height).distance);
+    // Far enough to cover the whole region from any point inside it.
+    final radius = Offset(b.width, b.height).distance;
+    final slot = animations.start(id, scenePoint, radius);
+    if (slot == null) {
+      _completeFills([id]);
+      return;
+    }
+    _state[id] = _animating;
+    _stateBytes[id * 4 + 1] = slot + 1;
+    _uploadState();
     notifyListeners();
   }
 
@@ -65,17 +74,12 @@ class ColoringController extends ChangeNotifier {
   }
 
   void _completeFills(List<int> ids) {
-    final touched = <int>{};
     for (final id in ids) {
       _state[id] = _filled;
-      touched.add(picture.cellOf[id]);
+      _stateBytes[id * 4] = 255;
+      _stateBytes[id * 4 + 1] = 0;
     }
-    for (final cell in touched) {
-      filledByCell[cell]?.dispose();
-      filledByCell[cell] = _vertices(
-        picture.cells[cell].regionIds.where((id) => _state[id] == _filled),
-      );
-    }
+    _uploadState();
     notifyListeners();
 
     if (progress(selectedColor.value) >= 1) {
@@ -88,14 +92,35 @@ class ColoringController extends ChangeNotifier {
     }
   }
 
+  void _uploadState() {
+    final version = ++_uploadVersion;
+    ui.decodeImageFromPixels(
+      Uint8List.fromList(_stateBytes),
+      stateWidth,
+      stateHeight,
+      ui.PixelFormat.rgba8888,
+      (image) {
+        if (version != _uploadVersion || _disposed) {
+          image.dispose();
+          return;
+        }
+        final old = stateImage.value;
+        stateImage.value = image;
+        old?.dispose();
+        // Slots of fills that finished can be reused only once the shader
+        // sees those regions as filled.
+        animations.releaseFinished();
+      },
+    );
+  }
+
+  var _disposed = false;
+
   @override
   void dispose() {
-    for (final filled in filledByCell) {
-      filled?.dispose();
-    }
-    for (final highlight in _highlightByColor) {
-      highlight?.dispose();
-    }
+    _disposed = true;
+    stateImage.value?.dispose();
+    stateImage.dispose();
     animations.dispose();
     selectedColor.dispose();
     super.dispose();
@@ -103,13 +128,21 @@ class ColoringController extends ChangeNotifier {
 }
 
 class ActiveFill {
-  ActiveFill(this.regionId, this.origin, this.maxRadius, this.startedAt);
+  ActiveFill(
+    this.regionId,
+    this.slot,
+    this.origin,
+    this.maxRadius,
+    this.startedAt,
+  );
 
   final int regionId;
+  final int slot;
   final Offset origin;
   final double maxRadius;
   final Duration startedAt;
   double progress = 0;
+  bool finished = false;
 }
 
 class FillAnimations extends ChangeNotifier {
@@ -117,39 +150,59 @@ class FillAnimations extends ChangeNotifier {
     _ticker = vsync.createTicker(_tick);
   }
 
+  /// Fills the shader can animate at the same time.
+  static const slots = 8;
   static const duration = Duration(milliseconds: 650);
   static const curve = Curves.easeOutCubic;
 
   final void Function(List<int> regionIds) onCompleted;
   late final Ticker _ticker;
-  final active = <ActiveFill>[];
+
+  /// Fill per slot; a finished fill keeps its slot, fully grown, until the
+  /// region's filled state reaches the shader.
+  final bySlot = List<ActiveFill?>.filled(slots, null);
   var _elapsed = Duration.zero;
 
-  void start(int regionId, Offset origin, double maxRadius) {
+  /// Starts a fill and returns its slot, or null when all slots are busy.
+  int? start(int regionId, Offset origin, double maxRadius) {
+    final slot = bySlot.indexWhere((fill) => fill == null);
+    if (slot < 0) return null;
     if (!_ticker.isActive) {
       _elapsed = Duration.zero;
       _ticker.start();
     }
-    active.add(ActiveFill(regionId, origin, maxRadius, _elapsed));
+    bySlot[slot] = ActiveFill(regionId, slot, origin, maxRadius, _elapsed);
+    return slot;
+  }
+
+  void releaseFinished() {
+    for (var i = 0; i < slots; i++) {
+      if (bySlot[i]?.finished ?? false) bySlot[i] = null;
+    }
   }
 
   void _tick(Duration elapsed) {
     _elapsed = elapsed;
     final completed = <int>[];
-    active.removeWhere((fill) {
+    var running = false;
+    for (final fill in bySlot.nonNulls) {
+      if (fill.finished) continue;
       final t =
           (elapsed - fill.startedAt).inMicroseconds / duration.inMicroseconds;
       if (t >= 1) {
+        fill
+          ..progress = 1
+          ..finished = true;
         completed.add(fill.regionId);
-        return true;
+      } else {
+        fill.progress = curve.transform(t);
+        running = true;
       }
-      fill.progress = curve.transform(t);
-      return false;
-    });
+    }
 
     if (completed.isNotEmpty) onCompleted(completed);
     notifyListeners();
-    if (active.isEmpty) _ticker.stop();
+    if (!running) _ticker.stop();
   }
 
   @override

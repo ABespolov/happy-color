@@ -6,25 +6,25 @@ import 'package:flutter/material.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/color_palette.dart';
 import 'package:happy_color/features/coloring/presentation/controllers/coloring_controller.dart';
 import 'package:happy_color/features/coloring/domain/entities/coloring_picture.dart';
-import 'package:happy_color/features/coloring/presentation/painters/artwork_reveal_painter.dart';
-import 'package:happy_color/features/coloring/presentation/painters/highlight_painter.dart';
+import 'package:happy_color/features/coloring/presentation/painters/coloring_canvas_painter.dart';
 import 'package:happy_color/features/coloring/presentation/painters/labels_painter.dart';
 import 'package:happy_color/features/coloring/presentation/painters/line_art_painter.dart';
-import 'package:happy_color/features/coloring/presentation/painters/outline_painter.dart';
 
 class ColoringView extends StatefulWidget {
   const ColoringView({
     super.key,
     required this.picture,
+    required this.shader,
+    required this.regionMap,
     required this.artwork,
-    this.lines,
+    required this.lines,
   });
 
   final ColoringPicture picture;
+  final ui.FragmentShader shader;
+  final ui.Image regionMap;
   final ui.Image artwork;
-
-  /// Line art drawn over the picture; region outlines are stroked without it.
-  final ui.Image? lines;
+  final ui.Image lines;
 
   @override
   State<ColoringView> createState() => _ColoringViewState();
@@ -38,16 +38,12 @@ class _ColoringViewState extends State<ColoringView>
   );
   final _transform = TransformationController();
   late final _labels = LabelAtlas(widget.picture.palette.length);
-  late final _artwork = artworkShader(widget.artwork, widget.picture.size);
-  late final _stripes = stripeShader(widget.picture.outlineWidth);
 
   @override
   void dispose() {
     _controller.dispose();
     _transform.dispose();
     _labels.dispose();
-    _artwork.dispose();
-    _stripes.dispose();
     super.dispose();
   }
 
@@ -92,22 +88,14 @@ class _ColoringViewState extends State<ColoringView>
                                 child: Stack(
                                   children: [
                                     _layer(
-                                      HighlightPainter(_controller, _stripes),
-                                    ),
-                                    _layer(
-                                      ArtworkRevealPainter(
-                                        _controller,
-                                        _artwork,
+                                      ColoringCanvasPainter(
+                                        controller: _controller,
+                                        shader: widget.shader,
+                                        regionMap: widget.regionMap,
+                                        artwork: widget.artwork,
                                       ),
                                     ),
-                                    _layer(switch (widget.lines) {
-                                      final lines? => LineArtPainter(lines),
-                                      null => OutlinePainter(
-                                        picture: picture,
-                                        transform: _transform,
-                                        fit: fit,
-                                      ),
-                                    }),
+                                    _layer(LineArtPainter(widget.lines)),
                                     _layer(
                                       LabelsPainter(
                                         controller: _controller,

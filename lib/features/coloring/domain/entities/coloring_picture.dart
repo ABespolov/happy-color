@@ -3,82 +3,71 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 class PictureRegion {
-  PictureRegion({
-    required this.path,
-    required this.triangles,
+  const PictureRegion({
     required this.colorIndex,
+    required this.bounds,
     required this.labelAt,
     required this.labelRadius,
-  }) : bounds = path.getBounds();
+  });
 
-  final Path path;
+  factory PictureRegion.fromJson(Map<String, dynamic> json) {
+    final label = _doubles(json['label']);
+    final b = _doubles(json['bounds']);
+    return PictureRegion(
+      colorIndex: json['color'] as int,
+      bounds: Rect.fromLTRB(b[0], b[1], b[2], b[3]),
+      labelAt: Offset(label[0], label[1]),
+      labelRadius: label[2],
+    );
+  }
 
-  final Float32List triangles;
-
-  final Rect bounds;
   final int colorIndex;
-
+  final Rect bounds;
   final Offset labelAt;
   final double labelRadius;
 }
 
-/// A spatial bucket of regions. Every region lives in exactly one cell, and
-/// [bounds] fully covers each of them, so a cell can be skipped whenever its
-/// bounds miss the point or rect of interest.
-typedef SceneCell = ({Rect bounds, Path outline, List<int> regionIds});
-
+/// A color-by-number picture whose regions are stored as a pixel map: every
+/// pixel holds the index of the region it belongs to.
 class ColoringPicture {
   ColoringPicture({
     required this.size,
-    required this.outlineWidth,
     required this.palette,
     required this.regions,
-  }) : regionsByColor = List.generate(palette.length, (_) => <int>[]),
-       cellOf = Int32List(regions.length) {
-    final buckets = List.generate(_grid * _grid, (_) => <int>[]);
+    required this.regionMap,
+    required this.mapWidth,
+    required this.mapHeight,
+  }) : regionsByColor = List.generate(palette.length, (_) => <int>[]) {
     for (var id = 0; id < regions.length; id++) {
-      final region = regions[id];
-      regionsByColor[region.colorIndex].add(id);
-      final c = region.bounds.center;
-      final column = (c.dx / size.width * _grid).floor().clamp(0, _grid - 1);
-      final row = (c.dy / size.height * _grid).floor().clamp(0, _grid - 1);
-      buckets[row * _grid + column].add(id);
-    }
-    cells = [
-      for (final ids in buckets)
-        if (ids.isNotEmpty)
-          (
-            bounds: ids
-                .map((id) => regions[id].bounds)
-                .reduce((a, b) => a.expandToInclude(b)),
-            outline: ids.fold(
-              Path(),
-              (p, id) => p..addPath(regions[id].path, Offset.zero),
-            ),
-            regionIds: ids,
-          ),
-    ];
-    for (var cell = 0; cell < cells.length; cell++) {
-      for (final id in cells[cell].regionIds) {
-        cellOf[id] = cell;
-      }
+      regionsByColor[regions[id].colorIndex].add(id);
     }
   }
 
-  static const _grid = 16;
-
-  factory ColoringPicture.fromJson(String source) {
+  /// [regionMapRgba] is the decoded `regions.png`: region index + 1 in the
+  /// red (low byte) and green (high byte) channels, 0 for no region.
+  factory ColoringPicture.fromJson(
+    String source, {
+    required ByteData regionMapRgba,
+    required int mapWidth,
+    required int mapHeight,
+  }) {
     final json = jsonDecode(source) as Map<String, dynamic>;
-    List<double> doubles(Object? list) => [
-      for (final v in list as List) (v as num).toDouble(),
-    ];
+
+    final pixels = mapWidth * mapHeight;
+    final bytes = regionMapRgba.buffer.asUint8List(
+      regionMapRgba.offsetInBytes,
+      regionMapRgba.lengthInBytes,
+    );
+    final regionMap = Int32List(pixels);
+    for (var i = 0; i < pixels; i++) {
+      regionMap[i] = bytes[i * 4] + (bytes[i * 4 + 1] << 8) - 1;
+    }
 
     return ColoringPicture(
       size: Size(
         (json['width'] as num).toDouble(),
         (json['height'] as num).toDouble(),
       ),
-      outlineWidth: (json['outlineWidth'] as num).toDouble(),
       palette: [
         for (final hex in json['palette'] as List)
           Color(
@@ -87,60 +76,33 @@ class ColoringPicture {
       ],
       regions: [
         for (final r in json['regions'] as List)
-          PictureRegion(
-            path: _regionPath(
-              doubles(r['points']),
-              holes: [for (final h in r['holes'] as List? ?? []) doubles(h)],
-              parts: [for (final p in r['parts'] as List? ?? []) doubles(p)],
-            ),
-            triangles: Float32List.fromList(doubles(r['triangles'])),
-            colorIndex: r['color'] as int,
-            labelAt: Offset(r['label'][0].toDouble(), r['label'][1].toDouble()),
-            labelRadius: r['label'][2].toDouble(),
-          ),
+          PictureRegion.fromJson(r as Map<String, dynamic>),
       ],
+      regionMap: regionMap,
+      mapWidth: mapWidth,
+      mapHeight: mapHeight,
     );
   }
 
   final Size size;
-  final double outlineWidth;
   final List<Color> palette;
   final List<PictureRegion> regions;
   final List<List<int>> regionsByColor;
-  late final List<SceneCell> cells;
 
-  /// Index into [cells] for each region id.
-  final Int32List cellOf;
+  /// Region index per map pixel, row by row; -1 where there is no region.
+  final Int32List regionMap;
+  final int mapWidth;
+  final int mapHeight;
 
   int? regionAt(Offset point) {
-    for (final cell in cells) {
-      if (!cell.bounds.contains(point)) continue;
-      for (final id in cell.regionIds) {
-        final region = regions[id];
-        if (region.bounds.contains(point) && region.path.contains(point)) {
-          return id;
-        }
-      }
-    }
-    return null;
+    final x = (point.dx / size.width * mapWidth).floor();
+    final y = (point.dy / size.height * mapHeight).floor();
+    if (x < 0 || y < 0 || x >= mapWidth || y >= mapHeight) return null;
+    final id = regionMap[y * mapWidth + x];
+    return id < 0 ? null : id;
   }
 }
 
-/// Outline of a region: its main polygon, [holes] cut out of it that belong
-/// to other regions, and separate [parts] when the region is split in pieces.
-Path _regionPath(
-  List<double> outline, {
-  required List<List<double>> holes,
-  required List<List<double>> parts,
-}) {
-  final path = Path()..addPolygon(_points(outline), true);
-  if (holes.isNotEmpty) path.fillType = PathFillType.evenOdd;
-  for (final ring in [...holes, ...parts]) {
-    path.addPolygon(_points(ring), true);
-  }
-  return path;
-}
-
-List<Offset> _points(List<double> xy) => [
-  for (var i = 0; i < xy.length; i += 2) Offset(xy[i], xy[i + 1]),
+List<double> _doubles(Object? list) => [
+  for (final v in list as List) (v as num).toDouble(),
 ];

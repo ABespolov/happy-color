@@ -20,11 +20,11 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/artwork.png
-    - assets/picture.json
     - assets/icons/my_feed/
     - assets/icons/library/
     - assets/icons/more/
     - assets/icons/feed/
     - assets/illustrations/
     - assets/pictures/fox/
+  shaders:
+    - shaders/coloring.frag

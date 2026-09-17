@@ -1,5 +1,3 @@
 numpy
 opencv-python-headless
 scikit-learn
-shapely
-mapbox-earcut
