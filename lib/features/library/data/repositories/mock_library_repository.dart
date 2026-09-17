@@ -9,14 +9,21 @@ class MockLibraryRepository implements LibraryRepository {
 
   static const _categories = [
     LibraryCategory(id: 'all', title: 'All'),
-    LibraryCategory(id: 'popular', title: 'Popular'),
     LibraryCategory(id: 'animals', title: 'Animals'),
     LibraryCategory(id: 'nature', title: 'Nature'),
     LibraryCategory(id: 'fantasy', title: 'Fantasy'),
+    LibraryCategory(id: 'food', title: 'Food'),
+    LibraryCategory(id: 'cities', title: 'Cities'),
   ];
 
-  /// Categories that own pictures; `all` and `popular` are selections.
-  static const _contentCategories = ['animals', 'nature', 'fantasy'];
+  /// Categories that own pictures; `all` shows every one of them.
+  static const _contentCategories = [
+    'animals',
+    'cities',
+    'fantasy',
+    'nature',
+    'food',
+  ];
 
   static const _picturesPerCategory = 8;
 
@@ -32,23 +39,28 @@ class MockLibraryRepository implements LibraryRepository {
       ],
   };
 
-  @override
-  Future<List<LibraryBanner>> getBanners() async => [
-    for (var i = 1; i <= 5; i++)
-      LibraryBanner(id: 'banner-$i', title: 'New collection $i'),
+  /// One banner per content category.
+  static final _banners = [
+    for (final category in _contentCategories)
+      LibraryBanner(
+        id: category,
+        title: category,
+        imageAsset: 'assets/banners/$category.png',
+      ),
   ];
+
+  @override
+  Future<List<LibraryBanner>> getBanners() async => _banners;
 
   @override
   Future<List<LibraryCategory>> getCategories() async => _categories;
 
   @override
-  Future<List<LibraryPicture>> getPictures(
-    String categoryId,
-  ) async => switch (categoryId) {
-    'all' => [for (final pictures in _picturesByCategory.values) ...pictures],
-    'popular' => [
-      for (final pictures in _picturesByCategory.values) ...pictures.take(3),
-    ],
-    _ => _picturesByCategory[categoryId] ?? const [],
-  };
+  Future<List<LibraryPicture>> getPictures(String categoryId) async =>
+      switch (categoryId) {
+        'all' => [
+          for (final pictures in _picturesByCategory.values) ...pictures,
+        ],
+        _ => _picturesByCategory[categoryId] ?? const [],
+      };
 }

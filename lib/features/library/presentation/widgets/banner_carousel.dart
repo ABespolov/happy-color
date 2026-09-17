@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:happy_color/features/library/domain/entities/library_banner.dart';
 import 'package:happy_color/features/library/presentation/widgets/banner_card.dart';
@@ -31,10 +33,41 @@ class _BannerCarouselState extends State<BannerCarousel> {
   static double cardHeightFor(double width) =>
       (width * _viewportFraction - _gap * 2) / _cardAspectRatio;
 
+  /// Pause between automatic page turns.
+  static const _autoScrollInterval = Duration(seconds: 4);
+
   final _controller = PageController(viewportFraction: _viewportFraction);
+
+  /// Turns pages until the user touches the banners for the first time.
+  Timer? _autoScroll;
+
+  @override
+  void initState() {
+    super.initState();
+    _autoScroll = Timer.periodic(_autoScrollInterval, (_) => _showNextPage());
+  }
+
+  void _showNextPage() {
+    // Library sits in an IndexedStack: skip turns while another tab is shown.
+    if (!TickerMode.valuesOf(context).enabled || !_controller.hasClients) {
+      return;
+    }
+    final next = (_controller.page ?? 0).round() + 1;
+    _controller.animateToPage(
+      next % widget.banners.length,
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeInOutCubic,
+    );
+  }
+
+  void _stopAutoScroll() {
+    _autoScroll?.cancel();
+    _autoScroll = null;
+  }
 
   @override
   void dispose() {
+    _stopAutoScroll();
     _controller.dispose();
     super.dispose();
   }
@@ -46,12 +79,18 @@ class _BannerCarouselState extends State<BannerCarousel> {
         LayoutBuilder(
           builder: (context, constraints) => SizedBox(
             height: cardHeightFor(constraints.maxWidth),
-            child: PageView.builder(
-              controller: _controller,
-              itemCount: widget.banners.length,
-              itemBuilder: (context, index) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: _gap),
-                child: BannerCard(banner: widget.banners[index], index: index),
+            child: Listener(
+              onPointerDown: (_) => _stopAutoScroll(),
+              child: PageView.builder(
+                controller: _controller,
+                itemCount: widget.banners.length,
+                itemBuilder: (context, index) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: _gap),
+                  child: BannerCard(
+                    banner: widget.banners[index],
+                    index: index,
+                  ),
+                ),
               ),
             ),
           ),

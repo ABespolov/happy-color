@@ -10,8 +10,14 @@ class MockFeedRepository implements FeedRepository {
   Future<List<FeedPicture>> getPictures(FeedSection section) async =>
       switch (section) {
         FeedSection.inProgress => [
-          for (final category in ['animals', 'nature', 'fantasy'])
-            for (var i = 1; i <= 4; i++)
+          for (final category in [
+            'animals',
+            'nature',
+            'fantasy',
+            'food',
+            'cities',
+          ])
+            for (var i = 1; i <= 2; i++)
               FeedPicture(
                 id: '${category}_$i',
                 assetDir: 'assets/pictures/$category/${category}_$i',

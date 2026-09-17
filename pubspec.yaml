@@ -50,5 +50,22 @@ flutter:
     - assets/pictures/fantasy/fantasy_6/
     - assets/pictures/fantasy/fantasy_7/
     - assets/pictures/fantasy/fantasy_8/
+    - assets/pictures/food/food_1/
+    - assets/pictures/food/food_2/
+    - assets/pictures/food/food_3/
+    - assets/pictures/food/food_4/
+    - assets/pictures/food/food_5/
+    - assets/pictures/food/food_6/
+    - assets/pictures/food/food_7/
+    - assets/pictures/food/food_8/
+    - assets/pictures/cities/cities_1/
+    - assets/pictures/cities/cities_2/
+    - assets/pictures/cities/cities_3/
+    - assets/pictures/cities/cities_4/
+    - assets/pictures/cities/cities_5/
+    - assets/pictures/cities/cities_6/
+    - assets/pictures/cities/cities_7/
+    - assets/pictures/cities/cities_8/
+    - assets/banners/
   shaders:
     - shaders/coloring.frag
