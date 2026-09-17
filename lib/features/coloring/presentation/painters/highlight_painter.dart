@@ -2,7 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import '../coloring_controller.dart';
+import 'package:happy_color/features/coloring/presentation/controllers/coloring_controller.dart';
 
 class HighlightPainter extends CustomPainter {
   HighlightPainter(this.controller, ui.ImageShader stripes)

@@ -3,8 +3,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import '../coloring_controller.dart';
-import 'scene_fit.dart';
+import 'package:happy_color/features/coloring/presentation/controllers/coloring_controller.dart';
+import 'package:happy_color/features/coloring/presentation/painters/scene_fit.dart';
 
 const _fontPx = 16.0;
 

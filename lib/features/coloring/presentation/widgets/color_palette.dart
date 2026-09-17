@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'coloring_controller.dart';
+import 'package:happy_color/features/coloring/presentation/controllers/coloring_controller.dart';
 
 class ColorPalette extends StatelessWidget {
   const ColorPalette({super.key, required this.controller});

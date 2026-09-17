@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../coloring_picture.dart';
-import 'scene_fit.dart';
+import 'package:happy_color/features/coloring/domain/entities/coloring_picture.dart';
+import 'package:happy_color/features/coloring/presentation/painters/scene_fit.dart';
 
 class OutlinePainter extends CustomPainter {
   OutlinePainter({

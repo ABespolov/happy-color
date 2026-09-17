@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_riverpod: ^3.4.3
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -20,3 +22,8 @@ flutter:
   assets:
     - assets/artwork.png
     - assets/picture.json
+    - assets/icons/my_feed/
+    - assets/icons/library/
+    - assets/icons/more/
+    - assets/icons/feed/
+    - assets/illustrations/

@@ -1,0 +1,41 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:happy_color/features/my_feed/domain/entities/feed_section.dart';
+import 'package:happy_color/features/my_feed/presentation/providers/feed_providers.dart';
+import 'package:happy_color/features/my_feed/presentation/widgets/empty_state.dart';
+import 'package:happy_color/features/my_feed/presentation/widgets/picture_grid.dart';
+
+/// Pictures of a section, or its empty state.
+class FeedSectionContent extends ConsumerWidget {
+  const FeedSectionContent({super.key, required this.section});
+
+  final FeedSection section;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pictures = ref.watch(feedPicturesProvider(section));
+    return switch (pictures) {
+      AsyncData(:final value) when value.isNotEmpty => PictureGrid(
+        pictures: value,
+      ),
+      AsyncData() => _emptyState(),
+      AsyncError(:final error) => Center(child: Text('$error')),
+      _ => const Center(child: CircularProgressIndicator()),
+    };
+  }
+
+  Widget _emptyState() => switch (section) {
+    FeedSection.starred => EmptyState(
+      illustration: 'starred_empty',
+      message: 'Long tap pictures you want to color to save them here',
+      action: 'Try',
+      onAction: () {},
+    ),
+    FeedSection.inProgress || FeedSection.completed => EmptyState(
+      illustration: 'completed_empty',
+      message: 'All your completed pictures are saved here',
+      action: 'Start coloring',
+      onAction: () {},
+    ),
+  };
+}

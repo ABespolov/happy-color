@@ -1,19 +1,7 @@
 import 'package:flutter/material.dart';
-
-import 'coloring_page.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:happy_color/app/app.dart';
 
 void main() {
-  runApp(const ColoringApp());
-}
-
-class ColoringApp extends StatelessWidget {
-  const ColoringApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: ColoringPage(),
-    );
-  }
+  runApp(const ProviderScope(child: HappyColorApp()));
 }

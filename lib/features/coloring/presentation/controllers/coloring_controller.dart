@@ -4,7 +4,7 @@ import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 
-import 'coloring_picture.dart';
+import 'package:happy_color/features/coloring/domain/entities/coloring_picture.dart';
 
 class ColoringController extends ChangeNotifier {
   ColoringController({required this.picture, required TickerProvider vsync})
