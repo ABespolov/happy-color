@@ -20,14 +20,9 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: SingleChildScrollView(
-        // Center within the area above the floating tab bar.
-        padding: EdgeInsets.fromLTRB(
-          24,
-          0,
-          24,
-          MediaQuery.paddingOf(context).bottom + 48,
-        ),
+      child: Padding(
+        // Sit a little above the middle, clear of the floating tab bar.
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 64),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

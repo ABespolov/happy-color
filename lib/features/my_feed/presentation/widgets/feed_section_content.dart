@@ -5,7 +5,7 @@ import 'package:happy_color/features/my_feed/presentation/providers/feed_provide
 import 'package:happy_color/features/my_feed/presentation/widgets/empty_state.dart';
 import 'package:happy_color/features/my_feed/presentation/widgets/picture_grid.dart';
 
-/// Pictures of a section, or its empty state.
+/// Sliver with the pictures of a section, or its empty state.
 class FeedSectionContent extends ConsumerWidget {
   const FeedSectionContent({super.key, required this.section});
 
@@ -18,9 +18,17 @@ class FeedSectionContent extends ConsumerWidget {
       AsyncData(:final value) when value.isNotEmpty => PictureGrid(
         pictures: value,
       ),
-      AsyncData() => _emptyState(),
-      AsyncError(:final error) => Center(child: Text('$error')),
-      _ => const Center(child: CircularProgressIndicator()),
+      AsyncData() => SliverFillRemaining(
+        hasScrollBody: false,
+        child: _emptyState(),
+      ),
+      AsyncError(:final error) => SliverToBoxAdapter(
+        child: Center(child: Text('$error')),
+      ),
+      _ => const SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(child: CircularProgressIndicator()),
+      ),
     };
   }
 

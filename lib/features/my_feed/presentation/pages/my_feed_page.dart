@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
+import 'package:happy_color/core/widgets/sheet_sliver.dart';
 import 'package:happy_color/features/my_feed/presentation/providers/feed_providers.dart';
 import 'package:happy_color/features/my_feed/presentation/widgets/feed_header.dart';
 import 'package:happy_color/features/my_feed/presentation/widgets/feed_section_content.dart';
@@ -21,57 +22,39 @@ class MyFeedPage extends ConsumerWidget {
           colors: AppColors.headerGradient,
         ),
       ),
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            const FeedHeader(),
-            Expanded(
-              child: DecoratedBox(
-                decoration: const BoxDecoration(
-                  color: AppColors.sheet,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SectionSwitcher(
-                        selected: section,
-                        onSelected: ref
-                            .read(selectedFeedSectionProvider.notifier)
-                            .select,
-                      ),
-                      const SizedBox(height: 16),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: Text(
-                          section.title,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.ink,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Expanded(
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          child: FeedSectionContent(
-                            key: ValueKey(section),
-                            section: section,
-                          ),
-                        ),
-                      ),
-                    ],
+      child: CustomScrollView(
+        slivers: [
+          SheetSliver(
+            topHeight: FeedHeader.heightOf(context),
+            top: const FeedHeader(),
+            headerHeight: SectionSwitcher.height + 12,
+            header: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: SectionSwitcher(
+                selected: section,
+                onSelected: ref
+                    .read(selectedFeedSectionProvider.notifier)
+                    .select,
+              ),
+            ),
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(18, 4, 18, 14),
+                sliver: SliverToBoxAdapter(
+                  child: Text(
+                    section.title,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.ink,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
+              FeedSectionContent(section: section),
+            ],
+          ),
+        ],
       ),
     );
   }

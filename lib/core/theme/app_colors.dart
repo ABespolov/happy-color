@@ -21,6 +21,9 @@ abstract final class AppColors {
   static const tabLabel = Color(0xFF6B7080);
   static const iconShadow = Color(0xFFD6DCE8);
 
+  static const indicatorActive = Color(0xFF7F90AF);
+  static const indicatorInactive = Color(0xFFB7C3D6);
+
   static const primary = Color(0xFFE86B7A);
   static const primaryPressed = Color(0xFFD95F6C);
 }

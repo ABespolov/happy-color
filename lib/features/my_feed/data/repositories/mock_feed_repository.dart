@@ -10,7 +10,7 @@ class MockFeedRepository implements FeedRepository {
   Future<List<FeedPicture>> getPictures(FeedSection section) async =>
       switch (section) {
         FeedSection.inProgress => [
-          for (var i = 0; i < 6; i++) FeedPicture(id: 'placeholder-$i'),
+          for (var i = 0; i < 12; i++) FeedPicture(id: 'placeholder-$i'),
         ],
         FeedSection.completed || FeedSection.starred => const [],
       };

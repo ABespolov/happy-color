@@ -12,6 +12,8 @@ class SectionSwitcher extends StatelessWidget {
     required this.onSelected,
   });
 
+  static const height = 48.0;
+
   final FeedSection selected;
   final ValueChanged<FeedSection> onSelected;
 
@@ -19,7 +21,7 @@ class SectionSwitcher extends StatelessWidget {
   Widget build(BuildContext context) {
     const sections = FeedSection.values;
     return Container(
-      height: 48,
+      height: height,
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: AppColors.track,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
+import 'package:happy_color/features/library/presentation/pages/library_page.dart';
 import 'package:happy_color/features/my_feed/presentation/pages/my_feed_page.dart';
 import 'package:happy_color/features/navigation/domain/entities/app_tab.dart';
 import 'package:happy_color/features/navigation/presentation/providers/selected_tab_provider.dart';
@@ -21,7 +22,8 @@ class HomeShell extends ConsumerWidget {
           for (final tab in AppTab.values)
             switch (tab) {
               AppTab.myFeed => const MyFeedPage(),
-              AppTab.library || AppTab.more => const SizedBox.expand(),
+              AppTab.library => const LibraryPage(),
+              AppTab.more => const SizedBox.expand(),
             },
         ],
       ),
