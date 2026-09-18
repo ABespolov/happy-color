@@ -27,7 +27,6 @@ class MockLibraryRepository implements LibraryRepository {
 
   static const _picturesPerCategory = 8;
 
-  // Temporary: every asset folder is a copy of the test fox.
   static final _picturesByCategory = {
     for (final category in _contentCategories)
       category: [
