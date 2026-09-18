@@ -154,6 +154,18 @@ abstract class AppLocalizations {
   /// **'Start coloring'**
   String get completedEmptyAction;
 
+  /// No description provided for @continueColoring.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get continueColoring;
+
+  /// No description provided for @colorAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Color again'**
+  String get colorAgain;
+
   /// No description provided for @fillAllTooltip.
   ///
   /// In en, this message translates to:

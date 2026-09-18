@@ -41,6 +41,12 @@ class ProgressNotifier extends AsyncNotifier<Map<String, PictureProgress>> {
     _update(progress.copyWith(starred: !progress.starred));
   }
 
+  /// Starts the picture over, keeping it in the library as untouched.
+  void clear(String id) {
+    final progress = state.value?[id];
+    if (progress != null) _update(progress.copyWith(filled: const {}));
+  }
+
   void _update(PictureProgress progress) {
     state = AsyncData({...?state.value, progress.id: progress});
     if (progress.isUntouched) {

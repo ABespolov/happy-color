@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:happy_color/app/router.dart';
 import 'package:happy_color/features/progress/domain/entities/picture_progress.dart';
 import 'package:happy_color/features/progress/presentation/providers/progress_providers.dart';
+import 'package:happy_color/features/progress/presentation/widgets/picture_actions_sheet.dart';
 
 /// A picture in a grid: opens it for coloring, stars it on a long press and
 /// shows how far it is colored.
@@ -23,7 +24,12 @@ class PictureTile extends ConsumerWidget {
       borderRadius: BorderRadius.circular(24),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => context.push(Routes.picture(id, assetDir)),
+        // A picture with colors in it asks what to do with them first.
+        onTap: () => switch (progress) {
+          PictureProgress(isStarted: true) && final started =>
+            PictureActionsSheet.show(context, started),
+          _ => context.push(Routes.picture(id, assetDir)),
+        },
         onLongPress: () =>
             ref.read(progressProvider.notifier).toggleStarred(id, assetDir),
         child: Stack(

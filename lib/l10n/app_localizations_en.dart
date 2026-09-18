@@ -41,6 +41,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get completedEmptyAction => 'Start coloring';
 
   @override
+  String get continueColoring => 'Continue';
+
+  @override
+  String get colorAgain => 'Color again';
+
+  @override
   String get fillAllTooltip => 'Open every region of the selected color';
 
   @override
