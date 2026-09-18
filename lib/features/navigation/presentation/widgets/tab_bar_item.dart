@@ -46,12 +46,12 @@ class _TabBarItemState extends State<TabBarItem>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox.square(dimension: 44, child: widget.icon(_controller)),
-          const SizedBox(height: 2),
+          SizedBox.square(dimension: 38, child: widget.icon(_controller)),
+          const SizedBox(height: 1),
           AnimatedDefaultTextStyle(
             duration: const Duration(milliseconds: 200),
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w400,
               color: widget.selected
                   ? AppColors.tabLabelSelected

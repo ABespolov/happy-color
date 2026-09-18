@@ -27,10 +27,14 @@ class AppTabBar extends ConsumerWidget {
           ),
         ],
       ),
-      child: SafeArea(
-        top: false,
+      // The home indicator inset would leave a wide empty strip under the
+      // labels, so only part of it is kept.
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewPaddingOf(context).bottom.clamp(0.0, 20.0),
+        ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 6, 8, 2),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           child: Row(
             children: [
               for (final tab in AppTab.values)
