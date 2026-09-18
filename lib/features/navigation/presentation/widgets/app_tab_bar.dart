@@ -7,6 +7,7 @@ import 'package:happy_color/features/navigation/presentation/widgets/tab_bar_ite
 import 'package:happy_color/features/navigation/presentation/widgets/tab_icons/library_tab_icon.dart';
 import 'package:happy_color/features/navigation/presentation/widgets/tab_icons/more_tab_icon.dart';
 import 'package:happy_color/features/navigation/presentation/widgets/tab_icons/my_feed_tab_icon.dart';
+import 'package:happy_color/l10n/app_localizations.dart';
 
 /// White rounded bottom bar with animated tab icons.
 class AppTabBar extends ConsumerWidget {
@@ -15,6 +16,7 @@ class AppTabBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selected = ref.watch(selectedTabProvider);
+    final l10n = AppLocalizations.of(context)!;
     return DecoratedBox(
       decoration: const BoxDecoration(
         color: AppColors.tabBar,
@@ -41,7 +43,7 @@ class AppTabBar extends ConsumerWidget {
                 Expanded(
                   child: TabBarItem(
                     icon: _iconOf(tab),
-                    label: _labelOf(tab),
+                    label: _labelOf(tab, l10n),
                     selected: tab == selected,
                     onTap: () =>
                         ref.read(selectedTabProvider.notifier).select(tab),
@@ -54,10 +56,10 @@ class AppTabBar extends ConsumerWidget {
     );
   }
 
-  static String _labelOf(AppTab tab) => switch (tab) {
-    AppTab.myFeed => 'My Feed',
-    AppTab.library => 'Library',
-    AppTab.more => 'More',
+  static String _labelOf(AppTab tab, AppLocalizations l10n) => switch (tab) {
+    AppTab.myFeed => l10n.myFeedTab,
+    AppTab.library => l10n.libraryTab,
+    AppTab.more => l10n.moreTab,
   };
 
   static TabIconBuilder _iconOf(AppTab tab) => switch (tab) {

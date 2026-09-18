@@ -7,6 +7,7 @@ import 'package:happy_color/features/my_feed/presentation/widgets/feed_header.da
 import 'package:happy_color/features/my_feed/presentation/widgets/feed_section_content.dart';
 import 'package:happy_color/features/my_feed/presentation/widgets/feed_section_ui.dart';
 import 'package:happy_color/features/my_feed/presentation/widgets/section_switcher.dart';
+import 'package:happy_color/l10n/app_localizations.dart';
 
 class MyFeedPage extends ConsumerWidget {
   const MyFeedPage({super.key});
@@ -42,7 +43,7 @@ class MyFeedPage extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(18, 4, 18, 14),
                 sliver: SliverToBoxAdapter(
                   child: Text(
-                    section.title,
+                    section.title(AppLocalizations.of(context)!),
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w600,

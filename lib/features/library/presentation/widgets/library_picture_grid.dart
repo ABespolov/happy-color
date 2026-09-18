@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/features/library/presentation/providers/library_providers.dart';
 import 'package:happy_color/features/library/presentation/widgets/library_picture_card.dart';
+import 'package:happy_color/l10n/app_localizations.dart';
 
 /// Sliver grid with the pictures of a category.
 class LibraryPictureGrid extends ConsumerWidget {
@@ -27,7 +28,9 @@ class LibraryPictureGrid extends ConsumerWidget {
         ),
       ),
       AsyncError(:final error) => SliverToBoxAdapter(
-        child: Center(child: Text('$error')),
+        child: Center(
+          child: Text(AppLocalizations.of(context)!.loadingFailed('$error')),
+        ),
       ),
       _ => const SliverToBoxAdapter(
         child: Padding(

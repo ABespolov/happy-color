@@ -1,0 +1,25 @@
+{
+  "@@locale": "en",
+
+  "myFeedTab": "My Feed",
+  "libraryTab": "Library",
+  "moreTab": "More",
+
+  "inProgressSection": "In Progress",
+  "completedSection": "Completed",
+  "starredSection": "Starred",
+
+  "starredEmpty": "Long tap pictures you want to color to save them here",
+  "starredEmptyAction": "Try",
+  "completedEmpty": "All your completed pictures are saved here",
+  "completedEmptyAction": "Start coloring",
+
+  "fillAllTooltip": "Open every region of the selected color",
+
+  "loadingFailed": "Could not load: {error}",
+  "@loadingFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  }
+}

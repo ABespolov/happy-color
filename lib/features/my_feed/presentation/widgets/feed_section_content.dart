@@ -6,6 +6,7 @@ import 'package:happy_color/features/my_feed/presentation/widgets/empty_state.da
 import 'package:happy_color/features/my_feed/presentation/widgets/picture_grid.dart';
 import 'package:happy_color/features/navigation/domain/entities/app_tab.dart';
 import 'package:happy_color/features/navigation/presentation/providers/selected_tab_provider.dart';
+import 'package:happy_color/l10n/app_localizations.dart';
 
 /// Sliver with the pictures of a section, or its empty state.
 class FeedSectionContent extends ConsumerWidget {
@@ -22,10 +23,12 @@ class FeedSectionContent extends ConsumerWidget {
       ),
       AsyncData() => SliverFillRemaining(
         hasScrollBody: false,
-        child: _emptyState(ref),
+        child: _emptyState(ref, AppLocalizations.of(context)!),
       ),
       AsyncError(:final error) => SliverToBoxAdapter(
-        child: Center(child: Text('$error')),
+        child: Center(
+          child: Text(AppLocalizations.of(context)!.loadingFailed('$error')),
+        ),
       ),
       _ => const SliverFillRemaining(
         hasScrollBody: false,
@@ -37,17 +40,17 @@ class FeedSectionContent extends ConsumerWidget {
   void _openLibrary(WidgetRef ref) =>
       ref.read(selectedTabProvider.notifier).select(AppTab.library);
 
-  Widget _emptyState(WidgetRef ref) => switch (section) {
+  Widget _emptyState(WidgetRef ref, AppLocalizations l10n) => switch (section) {
     FeedSection.starred => EmptyState(
       illustration: 'starred_empty',
-      message: 'Long tap pictures you want to color to save them here',
-      action: 'Try',
+      message: l10n.starredEmpty,
+      action: l10n.starredEmptyAction,
       onAction: () => _openLibrary(ref),
     ),
     FeedSection.inProgress || FeedSection.completed => EmptyState(
       illustration: 'completed_empty',
-      message: 'All your completed pictures are saved here',
-      action: 'Start coloring',
+      message: l10n.completedEmpty,
+      action: l10n.completedEmptyAction,
       onAction: () => _openLibrary(ref),
     ),
   };

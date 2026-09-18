@@ -7,6 +7,7 @@ import 'package:happy_color/features/progress/presentation/providers/progress_pr
 
 import 'package:happy_color/features/coloring/domain/entities/coloring_picture.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/coloring_view.dart';
+import 'package:happy_color/l10n/app_localizations.dart';
 
 typedef _Scene = ({
   ColoringPicture picture,
@@ -95,7 +96,12 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
         future: _scene,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text('${snapshot.error}'));
+            return Center(
+              child: Text(
+                AppLocalizations.of(context)!
+                    .loadingFailed('${snapshot.error}'),
+              ),
+            );
           }
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());

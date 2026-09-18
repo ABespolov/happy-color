@@ -9,6 +9,7 @@ import 'package:happy_color/features/coloring/domain/entities/coloring_picture.d
 import 'package:happy_color/features/coloring/presentation/painters/coloring_canvas_painter.dart';
 import 'package:happy_color/features/coloring/presentation/painters/labels_painter.dart';
 import 'package:happy_color/features/coloring/presentation/painters/line_art_painter.dart';
+import 'package:happy_color/l10n/app_localizations.dart';
 
 class ColoringView extends StatefulWidget {
   const ColoringView({
@@ -127,7 +128,7 @@ class _ColoringViewState extends State<ColoringView>
                   top: 12,
                   right: 12,
                   child: FloatingActionButton.small(
-                    tooltip: 'Open every region of the selected color',
+                    tooltip: AppLocalizations.of(context)!.fillAllTooltip,
                     onPressed: _controller.fillAllOfSelectedColor,
                     child: const Icon(Icons.format_color_fill),
                   ),
