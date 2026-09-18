@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
 import 'package:go_router/go_router.dart';
 import 'package:happy_color/app/router.dart';
+import 'package:happy_color/features/coloring/presentation/widgets/colored_preview.dart';
 import 'package:happy_color/features/progress/domain/entities/picture_progress.dart';
 import 'package:happy_color/features/progress/presentation/providers/progress_providers.dart';
 import 'package:happy_color/features/progress/presentation/widgets/picture_actions_sheet.dart';
@@ -37,10 +38,16 @@ class PictureTile extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.all(12),
-              // A finished picture shows its colors, an unfinished one its lines.
-              child: Image.asset(
-                '$assetDir/${completed ? 'artwork.webp' : 'lines.webp'}',
-              ),
+              // A picture in progress shows the colors it has so far, a
+              // finished one all of them, an untouched one its lines.
+              child: switch (progress) {
+                PictureProgress(isStarted: true, :final filled)
+                    when !completed =>
+                  ColoredPreview(assetDir: assetDir, filled: filled, size: 400),
+                _ => Image.asset(
+                  '$assetDir/${completed ? 'artwork.webp' : 'lines.webp'}',
+                ),
+              },
             ),
             if (progress case PictureProgress(isStarted: true, :final fraction)
                 when !completed)

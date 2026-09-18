@@ -53,6 +53,12 @@ class SheetSliver extends StatelessWidget {
                   height: MediaQuery.paddingOf(context).bottom + 16,
                 ),
               ),
+              // Short content would leave the page background showing below
+              // the sheet, so the sheet always reaches the bottom.
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: SizedBox.shrink(),
+              ),
             ],
           ),
         ),

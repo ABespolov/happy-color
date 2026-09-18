@@ -11,13 +11,15 @@ class ColoredPreview extends StatefulWidget {
     super.key,
     required this.assetDir,
     required this.filled,
+    this.size = 1000,
   });
 
   final String assetDir;
   final Set<int> filled;
 
-  /// Side of the rendered preview in pixels.
-  static const _size = 1000;
+  /// Side of the rendered preview in pixels; a grid cell needs far less than
+  /// a full screen does.
+  final int size;
 
   @override
   State<ColoredPreview> createState() => _ColoredPreviewState();
@@ -27,9 +29,11 @@ class _ColoredPreviewState extends State<ColoredPreview> {
   late final Future<ui.Image> _image = _render();
 
   Future<ui.Image> _render() async {
-    const size = ColoredPreview._size;
+    final size = widget.size;
+    // The region map keeps its own resolution: scaling it would blend the
+    // region numbers stored in its pixels into numbers of other regions.
     final (regions, artwork, lines) = await (
-      _load('${widget.assetDir}/regions.png', size),
+      _load('${widget.assetDir}/regions.png', null),
       _load('${widget.assetDir}/artwork.webp', size),
       _load('${widget.assetDir}/lines.webp', size),
     ).wait;
@@ -37,13 +41,18 @@ class _ColoredPreviewState extends State<ColoredPreview> {
     final regionBytes = (await regions.toByteData())!.buffer.asUint8List();
     final artworkBytes = (await artwork.toByteData())!.buffer.asUint8List();
     final pixels = Uint8List(size * size * 4);
-    for (var i = 0; i < size * size; i++) {
-      final region = regionBytes[i * 4] + (regionBytes[i * 4 + 1] << 8) - 1;
-      final colored = region >= 0 && widget.filled.contains(region);
-      for (var channel = 0; channel < 3; channel++) {
-        pixels[i * 4 + channel] = colored ? artworkBytes[i * 4 + channel] : 255;
+    for (var y = 0; y < size; y++) {
+      final row = (y * regions.height ~/ size) * regions.width;
+      for (var x = 0; x < size; x++) {
+        final source = (row + x * regions.width ~/ size) * 4;
+        final region = regionBytes[source] + (regionBytes[source + 1] << 8) - 1;
+        final colored = region >= 0 && widget.filled.contains(region);
+        final i = (y * size + x) * 4;
+        for (var channel = 0; channel < 3; channel++) {
+          pixels[i + channel] = colored ? artworkBytes[i + channel] : 255;
+        }
+        pixels[i + 3] = 255;
       }
-      pixels[i * 4 + 3] = 255;
     }
     final painted = await _decodePixels(pixels, size);
 
@@ -58,7 +67,7 @@ class _ColoredPreviewState extends State<ColoredPreview> {
     return image;
   }
 
-  static Future<ui.Image> _load(String asset, int size) async {
+  static Future<ui.Image> _load(String asset, int? size) async {
     final data = await rootBundle.load(asset);
     final codec = await ui.instantiateImageCodec(
       data.buffer.asUint8List(),
