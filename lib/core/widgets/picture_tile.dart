@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
-import 'package:happy_color/features/coloring/presentation/pages/coloring_page.dart';
+import 'package:go_router/go_router.dart';
+import 'package:happy_color/app/router.dart';
 import 'package:happy_color/features/progress/domain/entities/picture_progress.dart';
 import 'package:happy_color/features/progress/presentation/providers/progress_providers.dart';
 
@@ -22,11 +23,7 @@ class PictureTile extends ConsumerWidget {
       borderRadius: BorderRadius.circular(24),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => ColoringPage(id: id, assetDir: assetDir),
-          ),
-        ),
+        onTap: () => context.push(Routes.picture(id, assetDir)),
         onLongPress: () =>
             ref.read(progressProvider.notifier).toggleStarred(id, assetDir),
         child: Stack(

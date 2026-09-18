@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:happy_color/features/library/domain/entities/library_banner.dart';
+import 'package:go_router/go_router.dart';
+import 'package:happy_color/app/router.dart';
 import 'package:happy_color/features/library/presentation/widgets/banner_card.dart';
 import 'package:happy_color/features/library/presentation/widgets/page_indicator.dart';
 
@@ -84,13 +86,16 @@ class _BannerCarouselState extends State<BannerCarousel> {
               child: PageView.builder(
                 controller: _controller,
                 itemCount: widget.banners.length,
-                itemBuilder: (context, index) => Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: _gap),
-                  child: BannerCard(
-                    banner: widget.banners[index],
-                    index: index,
-                  ),
-                ),
+                itemBuilder: (context, index) {
+                  final banner = widget.banners[index];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: _gap),
+                    child: GestureDetector(
+                      onTap: () => context.push(Routes.collection(banner.id)),
+                      child: BannerCard(banner: banner, index: index),
+                    ),
+                  );
+                },
               ),
             ),
           ),

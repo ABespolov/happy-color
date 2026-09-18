@@ -4,8 +4,8 @@ import 'package:happy_color/features/my_feed/domain/entities/feed_section.dart';
 import 'package:happy_color/features/my_feed/presentation/providers/feed_providers.dart';
 import 'package:happy_color/features/my_feed/presentation/widgets/empty_state.dart';
 import 'package:happy_color/features/my_feed/presentation/widgets/picture_grid.dart';
-import 'package:happy_color/features/navigation/domain/entities/app_tab.dart';
-import 'package:happy_color/features/navigation/presentation/providers/selected_tab_provider.dart';
+import 'package:go_router/go_router.dart';
+import 'package:happy_color/app/router.dart';
 import 'package:happy_color/l10n/app_localizations.dart';
 
 /// Sliver with the pictures of a section, or its empty state.
@@ -23,7 +23,7 @@ class FeedSectionContent extends ConsumerWidget {
       ),
       AsyncData() => SliverFillRemaining(
         hasScrollBody: false,
-        child: _emptyState(ref, AppLocalizations.of(context)!),
+        child: _emptyState(context, AppLocalizations.of(context)!),
       ),
       AsyncError(:final error) => SliverToBoxAdapter(
         child: Center(
@@ -37,21 +37,21 @@ class FeedSectionContent extends ConsumerWidget {
     };
   }
 
-  void _openLibrary(WidgetRef ref) =>
-      ref.read(selectedTabProvider.notifier).select(AppTab.library);
+  void _openLibrary(BuildContext context) => context.go(Routes.library);
 
-  Widget _emptyState(WidgetRef ref, AppLocalizations l10n) => switch (section) {
-    FeedSection.starred => EmptyState(
-      illustration: 'starred_empty',
-      message: l10n.starredEmpty,
-      action: l10n.starredEmptyAction,
-      onAction: () => _openLibrary(ref),
-    ),
-    FeedSection.inProgress || FeedSection.completed => EmptyState(
-      illustration: 'completed_empty',
-      message: l10n.completedEmpty,
-      action: l10n.completedEmptyAction,
-      onAction: () => _openLibrary(ref),
-    ),
-  };
+  Widget _emptyState(BuildContext context, AppLocalizations l10n) =>
+      switch (section) {
+        FeedSection.starred => EmptyState(
+          illustration: 'starred_empty',
+          message: l10n.starredEmpty,
+          action: l10n.starredEmptyAction,
+          onAction: () => _openLibrary(context),
+        ),
+        FeedSection.inProgress || FeedSection.completed => EmptyState(
+          illustration: 'completed_empty',
+          message: l10n.completedEmpty,
+          action: l10n.completedEmptyAction,
+          onAction: () => _openLibrary(context),
+        ),
+      };
 }

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
 import 'package:happy_color/features/navigation/domain/entities/app_tab.dart';
-import 'package:happy_color/features/navigation/presentation/providers/selected_tab_provider.dart';
 import 'package:happy_color/features/navigation/presentation/widgets/tab_bar_item.dart';
 import 'package:happy_color/features/navigation/presentation/widgets/tab_icons/library_tab_icon.dart';
 import 'package:happy_color/features/navigation/presentation/widgets/tab_icons/more_tab_icon.dart';
@@ -10,12 +8,18 @@ import 'package:happy_color/features/navigation/presentation/widgets/tab_icons/m
 import 'package:happy_color/l10n/app_localizations.dart';
 
 /// White rounded bottom bar with animated tab icons.
-class AppTabBar extends ConsumerWidget {
-  const AppTabBar({super.key});
+class AppTabBar extends StatelessWidget {
+  const AppTabBar({
+    super.key,
+    required this.selectedIndex,
+    required this.onSelected,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final selected = ref.watch(selectedTabProvider);
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return DecoratedBox(
       decoration: const BoxDecoration(
@@ -44,9 +48,8 @@ class AppTabBar extends ConsumerWidget {
                   child: TabBarItem(
                     icon: _iconOf(tab),
                     label: _labelOf(tab, l10n),
-                    selected: tab == selected,
-                    onTap: () =>
-                        ref.read(selectedTabProvider.notifier).select(tab),
+                    selected: tab.index == selectedIndex,
+                    onTap: () => onSelected(tab.index),
                   ),
                 ),
             ],
