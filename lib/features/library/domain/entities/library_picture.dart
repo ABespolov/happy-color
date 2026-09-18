@@ -1,8 +1,13 @@
-class LibraryPicture {
-  const LibraryPicture({required this.id, required this.assetDir});
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  final String id;
+part 'library_picture.freezed.dart';
 
-  /// Folder with the files written by `tools/generate_picture.py`.
-  final String assetDir;
+@freezed
+abstract class LibraryPicture with _$LibraryPicture {
+  const factory LibraryPicture({
+    required String id,
+
+    /// Folder with the files written by `tools/generate_picture.py`.
+    required String assetDir,
+  }) = _LibraryPicture;
 }

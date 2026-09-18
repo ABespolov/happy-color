@@ -1,8 +1,9 @@
-class FeedPicture {
-  const FeedPicture({required this.id, required this.assetDir});
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  final String id;
+part 'feed_picture.freezed.dart';
 
-  /// Folder with the files written by `tools/generate_picture.py`.
-  final String assetDir;
+@freezed
+abstract class FeedPicture with _$FeedPicture {
+  const factory FeedPicture({required String id, required String assetDir}) =
+      _FeedPicture;
 }

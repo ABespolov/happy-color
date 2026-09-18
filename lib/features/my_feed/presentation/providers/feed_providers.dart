@@ -1,12 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:happy_color/features/my_feed/data/repositories/mock_feed_repository.dart';
 import 'package:happy_color/features/my_feed/domain/entities/feed_picture.dart';
 import 'package:happy_color/features/my_feed/domain/entities/feed_section.dart';
-import 'package:happy_color/features/my_feed/domain/repositories/feed_repository.dart';
-
-final feedRepositoryProvider = Provider<FeedRepository>(
-  (ref) => const MockFeedRepository(),
-);
+import 'package:happy_color/features/progress/domain/entities/picture_progress.dart';
+import 'package:happy_color/features/progress/presentation/providers/progress_providers.dart';
 
 final selectedFeedSectionProvider =
     NotifierProvider<SelectedFeedSection, FeedSection>(SelectedFeedSection.new);
@@ -18,7 +14,23 @@ class SelectedFeedSection extends Notifier<FeedSection> {
   void select(FeedSection section) => state = section;
 }
 
+/// The pictures of a section, taken from what the user has colored or starred.
 final feedPicturesProvider =
-    FutureProvider.family<List<FeedPicture>, FeedSection>(
-      (ref, section) => ref.watch(feedRepositoryProvider).getPictures(section),
+    Provider.family<AsyncValue<List<FeedPicture>>, FeedSection>(
+      (ref, section) => ref
+          .watch(progressProvider)
+          .whenData(
+            (progress) => [
+              for (final picture in progress.values)
+                if (_belongsTo(picture, section))
+                  FeedPicture(id: picture.id, assetDir: picture.assetDir),
+            ],
+          ),
     );
+
+bool _belongsTo(PictureProgress picture, FeedSection section) =>
+    switch (section) {
+      FeedSection.inProgress => picture.isStarted && !picture.isCompleted,
+      FeedSection.completed => picture.isCompleted,
+      FeedSection.starred => picture.starred,
+    };

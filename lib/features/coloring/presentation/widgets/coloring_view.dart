@@ -18,6 +18,8 @@ class ColoringView extends StatefulWidget {
     required this.regionMap,
     required this.artwork,
     required this.lines,
+    required this.filled,
+    required this.onFilledChanged,
   });
 
   final ColoringPicture picture;
@@ -25,6 +27,11 @@ class ColoringView extends StatefulWidget {
   final ui.Image regionMap;
   final ui.Image artwork;
   final ui.Image lines;
+
+  /// Regions colored in an earlier session.
+  final Set<int> filled;
+
+  final void Function(Set<int> filled) onFilledChanged;
 
   @override
   State<ColoringView> createState() => _ColoringViewState();
@@ -35,6 +42,8 @@ class _ColoringViewState extends State<ColoringView>
   late final _controller = ColoringController(
     picture: widget.picture,
     vsync: this,
+    filled: widget.filled,
+    onFilledChanged: widget.onFilledChanged,
   );
   final _transform = TransformationController();
   late final _labels = LabelAtlas(widget.picture.palette.length);

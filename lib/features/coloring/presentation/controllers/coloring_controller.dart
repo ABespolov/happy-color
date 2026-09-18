@@ -7,20 +7,33 @@ import 'package:flutter/scheduler.dart';
 import 'package:happy_color/features/coloring/domain/entities/coloring_picture.dart';
 
 class ColoringController extends ChangeNotifier {
-  ColoringController({required this.picture, required TickerProvider vsync})
-    : _state = Uint8List(picture.regions.length),
-      stateWidth = _stateWidthFor(picture.regions.length),
-      stateHeight =
-          (picture.regions.length / _stateWidthFor(picture.regions.length))
-              .ceil() {
+  ColoringController({
+    required this.picture,
+    required TickerProvider vsync,
+    Set<int> filled = const {},
+    this.onFilledChanged,
+  }) : _state = Uint8List(picture.regions.length),
+       stateWidth = _stateWidthFor(picture.regions.length),
+       stateHeight =
+           (picture.regions.length / _stateWidthFor(picture.regions.length))
+               .ceil() {
     animations = FillAnimations(vsync: vsync, onCompleted: _completeFills);
     _stateBytes = Uint8List(stateWidth * stateHeight * 4);
     for (var id = 0; id < picture.regions.length; id++) {
       _stateBytes[id * 4 + 2] = picture.regions[id].colorIndex;
       _stateBytes[id * 4 + 3] = 255;
     }
+    for (final id in filled) {
+      if (id < picture.regions.length) {
+        _state[id] = _filled;
+        _stateBytes[id * 4] = 255;
+      }
+    }
     _uploadState();
   }
+
+  /// Called with every colored region whenever one more is filled.
+  final void Function(Set<int> filled)? onFilledChanged;
 
   static const _empty = 0, _animating = 1, _filled = 2;
 
@@ -41,6 +54,11 @@ class ColoringController extends ChangeNotifier {
   final Uint8List _state;
 
   bool isEmpty(int regionId) => _state[regionId] == _empty;
+
+  Set<int> get filledRegions => {
+    for (var id = 0; id < _state.length; id++)
+      if (_state[id] == _filled) id,
+  };
 
   double progress(int colorIndex) {
     final ids = picture.regionsByColor[colorIndex];
@@ -81,6 +99,7 @@ class ColoringController extends ChangeNotifier {
     }
     _uploadState();
     notifyListeners();
+    onFilledChanged?.call(filledRegions);
 
     if (progress(selectedColor.value) >= 1) {
       for (var i = 0; i < picture.palette.length; i++) {

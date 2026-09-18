@@ -4,6 +4,8 @@ import 'package:happy_color/features/my_feed/domain/entities/feed_section.dart';
 import 'package:happy_color/features/my_feed/presentation/providers/feed_providers.dart';
 import 'package:happy_color/features/my_feed/presentation/widgets/empty_state.dart';
 import 'package:happy_color/features/my_feed/presentation/widgets/picture_grid.dart';
+import 'package:happy_color/features/navigation/domain/entities/app_tab.dart';
+import 'package:happy_color/features/navigation/presentation/providers/selected_tab_provider.dart';
 
 /// Sliver with the pictures of a section, or its empty state.
 class FeedSectionContent extends ConsumerWidget {
@@ -20,7 +22,7 @@ class FeedSectionContent extends ConsumerWidget {
       ),
       AsyncData() => SliverFillRemaining(
         hasScrollBody: false,
-        child: _emptyState(),
+        child: _emptyState(ref),
       ),
       AsyncError(:final error) => SliverToBoxAdapter(
         child: Center(child: Text('$error')),
@@ -32,18 +34,21 @@ class FeedSectionContent extends ConsumerWidget {
     };
   }
 
-  Widget _emptyState() => switch (section) {
+  void _openLibrary(WidgetRef ref) =>
+      ref.read(selectedTabProvider.notifier).select(AppTab.library);
+
+  Widget _emptyState(WidgetRef ref) => switch (section) {
     FeedSection.starred => EmptyState(
       illustration: 'starred_empty',
       message: 'Long tap pictures you want to color to save them here',
       action: 'Try',
-      onAction: () {},
+      onAction: () => _openLibrary(ref),
     ),
     FeedSection.inProgress || FeedSection.completed => EmptyState(
       illustration: 'completed_empty',
       message: 'All your completed pictures are saved here',
       action: 'Start coloring',
-      onAction: () {},
+      onAction: () => _openLibrary(ref),
     ),
   };
 }

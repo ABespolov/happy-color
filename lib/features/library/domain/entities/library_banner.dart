@@ -1,9 +1,14 @@
-class LibraryBanner {
-  const LibraryBanner({required this.id, required this.title, this.imageAsset});
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  final String id;
-  final String title;
+part 'library_banner.freezed.dart';
 
-  /// Banner artwork; `null` until the image is added.
-  final String? imageAsset;
+@freezed
+abstract class LibraryBanner with _$LibraryBanner {
+  const factory LibraryBanner({
+    required String id,
+    required String title,
+
+    /// Banner artwork; `null` until the image is added.
+    String? imageAsset,
+  }) = _LibraryBanner;
 }

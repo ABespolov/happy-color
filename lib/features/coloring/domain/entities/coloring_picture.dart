@@ -11,14 +11,29 @@ class PictureRegion {
   });
 
   factory PictureRegion.fromJson(Map<String, dynamic> json) {
-    final label = _doubles(json['label']);
-    final b = _doubles(json['bounds']);
-    return PictureRegion(
-      colorIndex: json['color'] as int,
-      bounds: Rect.fromLTRB(b[0], b[1], b[2], b[3]),
-      labelAt: Offset(label[0], label[1]),
-      labelRadius: label[2],
-    );
+    if (json case {
+      'color': final int color,
+      'label': [final num x, final num y, final num radius],
+      'bounds': [
+        final num left,
+        final num top,
+        final num right,
+        final num bottom,
+      ],
+    }) {
+      return PictureRegion(
+        colorIndex: color,
+        bounds: Rect.fromLTRB(
+          left.toDouble(),
+          top.toDouble(),
+          right.toDouble(),
+          bottom.toDouble(),
+        ),
+        labelAt: Offset(x.toDouble(), y.toDouble()),
+        labelRadius: radius.toDouble(),
+      );
+    }
+    throw FormatException('bad region', json);
   }
 
   final int colorIndex;
@@ -102,7 +117,3 @@ class ColoringPicture {
     return id < 0 ? null : id;
   }
 }
-
-List<double> _doubles(Object? list) => [
-  for (final v in list as List) (v as num).toDouble(),
-];

@@ -2,6 +2,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:happy_color/features/progress/presentation/providers/progress_providers.dart';
 
 import 'package:happy_color/features/coloring/domain/entities/coloring_picture.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/coloring_view.dart';
@@ -14,17 +16,19 @@ typedef _Scene = ({
   ui.Image lines,
 });
 
-class ColoringPage extends StatefulWidget {
-  const ColoringPage({super.key, required this.assetDir});
+class ColoringPage extends ConsumerStatefulWidget {
+  const ColoringPage({super.key, required this.id, required this.assetDir});
+
+  final String id;
 
   /// Folder with the files written by `tools/generate_picture.py`.
   final String assetDir;
 
   @override
-  State<ColoringPage> createState() => _ColoringPageState();
+  ConsumerState<ColoringPage> createState() => _ColoringPageState();
 }
 
-class _ColoringPageState extends State<ColoringPage> {
+class _ColoringPageState extends ConsumerState<ColoringPage> {
   late final _scene = _load();
 
   Future<_Scene> _load() async {
@@ -67,6 +71,23 @@ class _ColoringPageState extends State<ColoringPage> {
     super.dispose();
   }
 
+  /// Read once: the view keeps the colored regions itself from then on.
+  late final _filled = ref
+      .read(progressProvider.notifier)
+      .of(widget.id, widget.assetDir)
+      .filled;
+
+  void _saveFilled(Set<int> filled) => ref
+      .read(progressProvider.notifier)
+      .setFilled(
+        widget.id,
+        widget.assetDir,
+        filled: filled,
+        regionCount: _regionCount,
+      );
+
+  var _regionCount = 0;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -80,12 +101,15 @@ class _ColoringPageState extends State<ColoringPage> {
             return const Center(child: CircularProgressIndicator());
           }
           final scene = snapshot.requireData;
+          _regionCount = scene.picture.regions.length;
           return ColoringView(
             picture: scene.picture,
             shader: scene.shader,
             regionMap: scene.regionMap,
             artwork: scene.artwork,
             lines: scene.lines,
+            filled: _filled,
+            onFilledChanged: _saveFilled,
           );
         },
       ),
