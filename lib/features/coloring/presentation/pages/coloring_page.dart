@@ -37,23 +37,24 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
 
   Future<_Scene> _load() async {
     final dir = widget.assetDir;
-    final (program, json, regionMap, artwork, lines) = await (
+    final (program, json, regions, artwork, lines) = await (
       ui.FragmentProgram.fromAsset('shaders/coloring.frag'),
       rootBundle.loadString('$dir/picture.json'),
-      _image('$dir/regions.png'),
+      // The preview of this picture has decoded its region map already, so
+      // the texture is uploaded from those pixels instead of decoded again.
+      _previews.regionMap(dir, () => loadRegionMap(dir)),
       _image('$dir/artwork.webp'),
       _image('$dir/lines.webp'),
     ).wait;
-    final rgba = await regionMap.toByteData();
     return (
       picture: ColoringPicture.fromJson(
         json,
-        regionMapRgba: rgba!,
-        mapWidth: regionMap.width,
-        mapHeight: regionMap.height,
+        regionMapRgba: ByteData.sublistView(regions.bytes),
+        mapWidth: regions.width,
+        mapHeight: regions.height,
       ),
       shader: program.fragmentShader(),
-      regionMap: regionMap,
+      regionMap: await decodePixels(regions.bytes, regions.width, regions.height),
       artwork: artwork,
       lines: lines,
     );
@@ -64,18 +65,20 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
     return decodeImageFromList(bytes.buffer.asUint8List());
   }
 
-  /// Builds the card-sized preview of what was just colored, so the grid the
-  /// user comes back to already has it.
+  /// Kept in a field: `ref` cannot be read once the page is being disposed of.
+  late final PreviewCache _previews = ref.read(previewCacheProvider);
+
+  /// What was colored when the page last saved, used to build the card-sized
+  /// preview the grid will need.
+  Set<int> _lastSaved = const {};
+
   void _warmCardPreview() {
-    final progress = ref
-        .read(progressProvider.notifier)
-        .of(widget.id, widget.assetDir);
-    if (!progress.isStarted) return;
+    if (_lastSaved.isEmpty) return;
     coloredPreview(
-      ref.read(previewCacheProvider),
+      _previews,
       assetDir: widget.assetDir,
       size: ColoredPreview.cardSize,
-      filled: progress.filled,
+      filled: _lastSaved,
     ).ignore();
   }
 
@@ -97,14 +100,17 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
       .of(widget.id, widget.assetDir)
       .filled;
 
-  void _saveFilled(Set<int> filled) => ref
-      .read(progressProvider.notifier)
-      .setFilled(
-        widget.id,
-        widget.assetDir,
-        filled: filled,
-        regionCount: _regionCount,
-      );
+  void _saveFilled(Set<int> filled) {
+    _lastSaved = filled;
+    ref
+        .read(progressProvider.notifier)
+        .setFilled(
+          widget.id,
+          widget.assetDir,
+          filled: filled,
+          regionCount: _regionCount,
+        );
+  }
 
   var _regionCount = 0;
 
@@ -128,7 +134,9 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
           // The picture is already on screen as a preview while the shader and
           // the textures load, so there is nothing to wait in front of.
           return AnimatedSwitcher(
-            duration: const Duration(milliseconds: 350),
+            duration: const Duration(milliseconds: 500),
+            switchInCurve: Curves.easeInOut,
+            switchOutCurve: Curves.easeInOut,
             child: scene == null
                 ? _Loading(assetDir: widget.assetDir, filled: _filled)
                 : ColoringView(

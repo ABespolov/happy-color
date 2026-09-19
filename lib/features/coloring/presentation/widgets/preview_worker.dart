@@ -25,7 +25,10 @@ class PaintRequest {
 
   final int regionsWidth;
   final int regionsHeight;
-  final Uint8List artwork;
+
+  /// Handed over rather than copied: the artwork is read once, painted, and
+  /// never needed on the sending side again.
+  final TransferableTypedData artwork;
   final Set<int> filled;
   final int size;
 }
@@ -43,7 +46,8 @@ class PreviewWorker {
   var _nextId = 0;
 
   /// Paints a preview. [regions] is only read the first time a picture is
-  /// painted; after that the isolate keeps its map.
+  /// painted; after that the isolate keeps its map. [artwork] is given away:
+  /// it is not to be read after this call.
   Future<Uint8List> paint({
     required String assetDir,
     required Uint8List regions,
@@ -63,7 +67,7 @@ class PreviewWorker {
         regions: _sentRegions.add(assetDir) ? regions : null,
         regionsWidth: regionsWidth,
         regionsHeight: regionsHeight,
-        artwork: artwork,
+        artwork: TransferableTypedData.fromList([artwork]),
         filled: filled,
         size: size,
       ),
@@ -78,8 +82,8 @@ class PreviewWorker {
       switch (message) {
         case SendPort port:
           ready.complete(port);
-        case (final int id, final Uint8List pixels):
-          _pending.remove(id)?.complete(pixels);
+        case (final int id, final TransferableTypedData pixels):
+          _pending.remove(id)?.complete(pixels.materialize().asUint8List());
         case (final int id, final Object error):
           _pending.remove(id)?.completeError(error);
       }
@@ -115,7 +119,8 @@ class PreviewWorker {
           throw StateError('no region map for ${request.assetDir}');
         }
         regions[request.assetDir] = map;
-        replies.send((id, paintPixels(request, map)));
+        final pixels = paintPixels(request, map);
+        replies.send((id, TransferableTypedData.fromList([pixels])));
       } on Object catch (error) {
         replies.send((id, error));
       }
@@ -126,19 +131,32 @@ class PreviewWorker {
 /// Colored regions take their pixels from the artwork, the rest stays white.
 Uint8List paintPixels(PaintRequest request, Uint8List regions) {
   final size = request.size;
-  final pixels = Uint8List(size * size * 4);
+  final artwork = request.artwork.materialize().asUint32List();
+  final pixels = Uint32List(size * size);
+  // The column of the region map behind every column of the preview, worked
+  // out once instead of once per pixel.
+  final columns = Uint32List(size);
+  for (var x = 0; x < size; x++) {
+    columns[x] = x * request.regionsWidth ~/ size;
+  }
+  final regionWords = regions.buffer.asUint16List(
+    regions.offsetInBytes,
+    regions.lengthInBytes ~/ 2,
+  );
+  // Pixels are handled a word at a time. Every platform the app runs on is
+  // little-endian, so the alpha byte of an RGBA pixel is the high one.
+  const opaque = 0xFF000000;
+  final filled = request.filled;
   for (var y = 0; y < size; y++) {
     final row = (y * request.regionsHeight ~/ size) * request.regionsWidth;
+    final out = y * size;
     for (var x = 0; x < size; x++) {
-      final source = (row + x * request.regionsWidth ~/ size) * 4;
-      final region = regions[source] + (regions[source + 1] << 8) - 1;
-      final colored = region >= 0 && request.filled.contains(region);
-      final i = (y * size + x) * 4;
-      for (var channel = 0; channel < 3; channel++) {
-        pixels[i + channel] = colored ? request.artwork[i + channel] : 255;
-      }
-      pixels[i + 3] = 255;
+      // The region number is in the red and green bytes, low byte first.
+      final region = regionWords[(row + columns[x]) * 2] - 1;
+      pixels[out + x] = region >= 0 && filled.contains(region)
+          ? artwork[out + x] | opaque
+          : 0xFFFFFFFF;
     }
   }
-  return pixels;
+  return pixels.buffer.asUint8List();
 }

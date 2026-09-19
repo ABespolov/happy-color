@@ -35,7 +35,10 @@ class ColoredPreview extends ConsumerStatefulWidget {
 }
 
 class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
-  late Future<ui.Image> _image = _fromCache();
+  /// Kept in a field: `ref` cannot be read while the widget is disposed of.
+  late final PreviewCache _cache = ref.read(previewCacheProvider);
+
+  late Future<ui.Image> _image;
 
   /// The preview to paint right now: the one the cache already has, or the
   /// one shown until a newer one finishes. Without it a card would go blank
@@ -48,6 +51,12 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
   /// newer one being rendered, held so it is not dropped before it is shown.
   PreviewKey? _painted;
   PreviewKey? _rendering;
+
+  @override
+  void initState() {
+    super.initState();
+    _image = _fromCache();
+  }
 
   @override
   void didUpdateWidget(ColoredPreview old) {
@@ -85,12 +94,12 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
 
   void _release(PreviewKey? key) {
     if (key == null) return;
-    ref.read(previewCacheProvider).release(key);
+    _cache.release(key);
   }
 
   /// The cache owns the image, so this widget never disposes of it.
   Future<ui.Image> _fromCache() {
-    final cache = ref.read(previewCacheProvider);
+    final cache = _cache;
     final key = PreviewKey(
       assetDir: widget.assetDir,
       size: widget.size,
@@ -116,18 +125,37 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
   @override
   Widget build(BuildContext context) {
     final ready = _ready;
-    if (ready != null) return RawImage(image: ready, fit: BoxFit.contain);
-    return FutureBuilder(
-      future: _image,
-      builder: (context, snapshot) => AnimatedSwitcher(
-        duration: const Duration(milliseconds: 200),
-        child: snapshot.hasData
-            ? RawImage(image: snapshot.data, fit: BoxFit.contain)
-            : const ColoredBox(color: Colors.white),
-      ),
+    final colors = ready != null
+        ? RawImage(image: ready, fit: BoxFit.contain)
+        : FutureBuilder(
+            future: _image,
+            builder: (context, snapshot) => AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: snapshot.hasData
+                  ? RawImage(image: snapshot.data, fit: BoxFit.contain)
+                  : const ColoredBox(color: Colors.white),
+            ),
+          );
+    // The line art is the same whatever is colored, so it is not baked into
+    // every preview: the image cache keeps one copy per picture and size.
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        colors,
+        Image.asset(
+          linesAsset(widget.assetDir, widget.size),
+          cacheWidth: widget.size,
+          fit: BoxFit.contain,
+          gaplessPlayback: true,
+        ),
+      ],
     );
   }
 }
+
+/// The line art drawn over a preview of [size].
+String linesAsset(String assetDir, int size) =>
+    '$assetDir/${size <= ColoredPreview.thumbnailSize ? 'lines_thumb' : 'lines'}.webp';
 
 /// The preview of a picture at [size], built only if the cache does not have
 /// it yet. The cache keeps and disposes of the image.
@@ -148,13 +176,13 @@ Future<ui.Image> _render(
   Set<int> filled,
 ) async {
   final small = size <= ColoredPreview.thumbnailSize;
-  final (regions, artwork, lines) = await (
-    cache.regionMap(assetDir, () => _loadRegionMap(assetDir)),
+  final (regions, artwork) = await (
+    cache.regionMap(assetDir, () => loadRegionMap(assetDir)),
     _load('$assetDir/${small ? 'artwork_thumb' : 'artwork'}.webp', size),
-    _load('$assetDir/${small ? 'lines_thumb' : 'lines'}.webp', size),
   ).wait;
 
   final artworkBytes = (await artwork.toByteData())!.buffer.asUint8List();
+  artwork.dispose();
   // Painting every pixel is the slow part, and it holds no engine objects,
   // so it happens away from the isolate that draws the frames.
   final pixels = await cache.worker.paint(
@@ -166,24 +194,12 @@ Future<ui.Image> _render(
     filled: filled,
     size: size,
   );
-  final painted = await _decodePixels(pixels, size);
-
-  final recorder = ui.PictureRecorder();
-  ui.Canvas(recorder)
-    ..drawImage(painted, Offset.zero, Paint())
-    ..drawImage(lines, Offset.zero, Paint());
-  final picture = recorder.endRecording();
-  final image = await picture.toImage(size, size);
-  picture.dispose();
-  for (final source in [artwork, lines, painted]) {
-    source.dispose();
-  }
-  return image;
+  return decodePixels(pixels, size, size);
 }
 
 /// The region map keeps its own resolution: scaling it would blend the region
 /// numbers stored in its pixels into numbers of other regions.
-Future<RegionMap> _loadRegionMap(String assetDir) async {
+Future<RegionMap> loadRegionMap(String assetDir) async {
   final image = await _load('$assetDir/regions.png', null);
   final bytes = (await image.toByteData())!.buffer.asUint8List();
   final map = RegionMap(bytes: bytes, width: image.width, height: image.height);
@@ -203,12 +219,13 @@ Future<ui.Image> _load(String asset, int? size) async {
   return frame.image;
 }
 
-Future<ui.Image> _decodePixels(Uint8List pixels, int size) {
+/// An image from raw RGBA pixels: an upload rather than a decode.
+Future<ui.Image> decodePixels(Uint8List pixels, int width, int height) {
   final done = Completer<ui.Image>();
   ui.decodeImageFromPixels(
     pixels,
-    size,
-    size,
+    width,
+    height,
     ui.PixelFormat.rgba8888,
     done.complete,
   );

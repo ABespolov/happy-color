@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
 import 'package:happy_color/features/library/domain/entities/library_category.dart';
@@ -35,16 +36,27 @@ class _CategoryTabsState extends State<CategoryTabs> {
     super.dispose();
   }
 
+  /// Measured once per list of categories: measuring text on every build
+  /// would run for every frame the underline moves.
+  late List<double> _widths;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _widths = _measure();
+  }
+
   @override
   void didUpdateWidget(CategoryTabs old) {
     super.didUpdateWidget(old);
+    if (!listEquals(old.categories, widget.categories)) _widths = _measure();
     if (old.selectedId != widget.selectedId) _showSelected();
   }
 
   /// Brings the selected name fully into view, with the next one peeking.
   void _showSelected() {
     if (!_scroll.hasClients || widget.categories.isEmpty) return;
-    final widths = _widths();
+    final widths = _widths;
     final index = _selectedIndex;
     var start = CategoryTabs._padding;
     for (var i = 0; i < index; i++) {
@@ -76,7 +88,7 @@ class _CategoryTabsState extends State<CategoryTabs> {
 
   /// Names are measured, not laid out twice: the underline has to know where
   /// every name starts before anything is painted.
-  List<double> _widths() => [
+  List<double> _measure() => [
     for (final category in widget.categories)
       (TextPainter(
         text: TextSpan(text: category.title, style: CategoryTabs._style),
@@ -90,7 +102,7 @@ class _CategoryTabsState extends State<CategoryTabs> {
     if (widget.categories.isEmpty) {
       return const SizedBox(height: CategoryTabs.height);
     }
-    final widths = _widths();
+    final widths = _widths;
     final index = _selectedIndex;
     var underlineStart = CategoryTabs._padding;
     for (var i = 0; i < index; i++) {

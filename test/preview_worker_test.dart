@@ -1,3 +1,4 @@
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -13,7 +14,8 @@ void main() {
         regions[i * 4] = i + 1;
         regions[i * 4 + 3] = 255;
       }
-      final artwork = Uint8List.fromList([
+      // The artwork is given away with every request, so it is made anew.
+      Uint8List artwork() => Uint8List.fromList([
         for (var i = 0; i < 4; i++) ...[10, 20, 30, 255],
       ]);
       const assetDir = 'assets/pictures/test';
@@ -22,7 +24,7 @@ void main() {
         regions: regions,
         regionsWidth: 2,
         regionsHeight: 2,
-        artwork: artwork,
+        artwork: TransferableTypedData.fromList([artwork()]),
         filled: {0, 3},
         size: 2,
       );
@@ -39,7 +41,7 @@ void main() {
         regions: regions,
         regionsWidth: 2,
         regionsHeight: 2,
-        artwork: artwork,
+        artwork: artwork(),
         filled: {0, 3},
         size: 2,
       );
@@ -52,7 +54,7 @@ void main() {
         regions: Uint8List(0),
         regionsWidth: 2,
         regionsHeight: 2,
-        artwork: artwork,
+        artwork: artwork(),
         filled: {0, 3},
         size: 2,
       );
