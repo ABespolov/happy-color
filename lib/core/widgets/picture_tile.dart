@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
 import 'package:happy_color/core/widgets/fade_in_frame.dart';
+import 'package:happy_color/core/widgets/fade_swap.dart';
 import 'package:happy_color/core/widgets/picture_thumbnail.dart';
 import 'package:go_router/go_router.dart';
 import 'package:happy_color/app/router.dart';
@@ -13,19 +14,10 @@ import 'package:happy_color/features/progress/presentation/widgets/picture_actio
 /// A picture in a grid: opens it for coloring, stars it on a long press and
 /// shows how far it is colored.
 class PictureTile extends ConsumerWidget {
-  const PictureTile({
-    super.key,
-    required this.id,
-    required this.assetDir,
-    this.slideDirection = 1,
-  });
+  const PictureTile({super.key, required this.id, required this.assetDir});
 
   final String id;
   final String assetDir;
-
-  /// Where a new picture comes in from when the card is given one: 1 from
-  /// the right, -1 from the left. The old picture leaves the other way.
-  final int slideDirection;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -49,70 +41,51 @@ class PictureTile extends ConsumerWidget {
         onLongPress: () =>
             ref.read(progressProvider.notifier).toggleStarred(id, assetDir),
         // A new card eases in; one given another picture, as on a category
-        // switch, slides it in the way the tabs moved while the old one
-        // slides out, within the card's rounded clip.
-        child: Appear(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 320),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeOutCubic,
-            transitionBuilder: (child, animation) {
-              final incoming = child.key == ValueKey(id);
-              return SlideTransition(
-                position: Tween(
-                  begin: Offset(
-                    (incoming ? slideDirection : -slideDirection).toDouble(),
-                    0,
-                  ),
-                  end: Offset.zero,
-                ).animate(animation),
-                child: child,
-              );
-            },
-            child: Stack(
-              key: ValueKey(id),
-              fit: StackFit.expand,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  // A picture in progress shows the colors it has so far, a
-                  // finished one all of them, an untouched one its lines.
-                  child: switch (progress) {
-                    PictureProgress(isStarted: true, :final filled)
-                        when !completed =>
-                      ColoredPreview(
-                        assetDir: assetDir,
-                        filled: filled,
-                        size: 400,
-                      ),
-                    // The thumbnails keep a grid of cards from decoding
-                    // pictures many times the size of a cell.
-                    _ => Image.asset(
-                      '$assetDir/'
-                      '${completed ? 'artwork_thumb' : 'lines_thumb'}.webp',
-                      cacheWidth: pictureThumbnailWidth(context),
-                      gaplessPlayback: true,
-                      frameBuilder: fadeInFrame,
+        // switch, lets the old picture fade out before the new one comes in.
+        child: FadeSwap(
+          child: Stack(
+            key: ValueKey(id),
+            fit: StackFit.expand,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(12),
+                // A picture in progress shows the colors it has so far, a
+                // finished one all of them, an untouched one its lines.
+                child: switch (progress) {
+                  PictureProgress(isStarted: true, :final filled)
+                      when !completed =>
+                    ColoredPreview(
+                      assetDir: assetDir,
+                      filled: filled,
+                      size: 400,
                     ),
-                  },
+                  // The thumbnails keep a grid of cards from decoding
+                  // pictures many times the size of a cell.
+                  _ => Image.asset(
+                    '$assetDir/'
+                    '${completed ? 'artwork_thumb' : 'lines_thumb'}.webp',
+                    cacheWidth: pictureThumbnailWidth(context),
+                    gaplessPlayback: true,
+                    frameBuilder: fadeInFrame,
+                  ),
+                },
+              ),
+              if (progress
+                  case PictureProgress(isStarted: true, :final fraction)
+                  when !completed)
+                Positioned(
+                  left: 12,
+                  right: 12,
+                  bottom: 10,
+                  child: _ProgressBar(fraction: fraction),
                 ),
-                if (progress
-                    case PictureProgress(isStarted: true, :final fraction)
-                    when !completed)
-                  Positioned(
-                    left: 12,
-                    right: 12,
-                    bottom: 10,
-                    child: _ProgressBar(fraction: fraction),
-                  ),
-                if (progress?.starred ?? false)
-                  const Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Icon(Icons.star_rounded, color: Color(0xFFFFC107)),
-                  ),
-              ],
-            ),
+              if (progress?.starred ?? false)
+                const Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Icon(Icons.star_rounded, color: Color(0xFFFFC107)),
+                ),
+            ],
           ),
         ),
       ),
