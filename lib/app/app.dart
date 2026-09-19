@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:happy_color/app/router.dart';
+import 'package:happy_color/app/splash_gate.dart';
 import 'package:happy_color/l10n/app_localizations.dart';
 
 class HappyColorApp extends StatelessWidget {
@@ -42,6 +43,7 @@ class HappyColorApp extends StatelessWidget {
         ],
         supportedLocales: AppLocalizations.supportedLocales,
         routerConfig: router,
+        builder: (context, child) => SplashGate(child: child!),
       ),
     );
   }

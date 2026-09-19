@@ -9,6 +9,10 @@ Future<void> main() async {
   // Draw under the status and navigation bars. This is the default when the
   // app targets a recent Android, and a no-op before Android 10.
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  // Two caches share the memory: this one holds assets decoded through an
+  // ImageProvider, the preview cache holds the pictures the app paints itself.
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 64 << 20;
+
   final progress = await createProgressRepository();
   runApp(
     ProviderScope(

@@ -9,7 +9,7 @@ import 'package:happy_color/features/progress/presentation/providers/progress_pr
 import 'package:happy_color/features/progress/presentation/widgets/picture_actions_sheet.dart';
 
 /// Decodes a card picture no larger than the cell it is shown in.
-int _thumbnailWidth(BuildContext context) {
+int pictureThumbnailWidth(BuildContext context) {
   final cell = MediaQuery.sizeOf(context).width / 2;
   return (cell * MediaQuery.devicePixelRatioOf(context)).round().clamp(
     200,
@@ -58,7 +58,7 @@ class PictureTile extends ConsumerWidget {
                 _ => Image.asset(
                   '$assetDir/'
                   '${completed ? 'artwork_thumb' : 'lines_thumb'}.webp',
-                  cacheWidth: _thumbnailWidth(context),
+                  cacheWidth: pictureThumbnailWidth(context),
                 ),
               },
             ),

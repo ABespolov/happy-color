@@ -19,6 +19,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get moreTab => 'More';
 
   @override
+  String get appTitle => 'Happy Color';
+
+  @override
   String get feedTitle => 'Happy coloring!';
 
   @override

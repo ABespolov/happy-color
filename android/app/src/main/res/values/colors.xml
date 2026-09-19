@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- First color of the app's header gradient, so the window never flashes
+         white or black before the Flutter splash appears. -->
+    <color name="launch_background">#FFE7C2D2</color>
+</resources>

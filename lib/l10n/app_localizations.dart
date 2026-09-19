@@ -112,6 +112,12 @@ abstract class AppLocalizations {
   /// **'More'**
   String get moreTab;
 
+  /// No description provided for @appTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Happy Color'**
+  String get appTitle;
+
   /// No description provided for @feedTitle.
   ///
   /// In en, this message translates to:
