@@ -9,14 +9,32 @@ import 'package:go_router/go_router.dart';
 import 'package:happy_color/app/router.dart';
 import 'package:happy_color/l10n/app_localizations.dart';
 
-/// Sliver with the pictures of a section, or its empty state.
-class FeedSectionContent extends ConsumerWidget {
+/// Sliver with the pictures of a section, or its empty state. On a switch
+/// the pictures slide the way the section switcher moved.
+class FeedSectionContent extends ConsumerStatefulWidget {
   const FeedSectionContent({super.key, required this.section});
 
   final FeedSection section;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FeedSectionContent> createState() => _FeedSectionContentState();
+}
+
+class _FeedSectionContentState extends ConsumerState<FeedSectionContent> {
+  var _direction = 1;
+
+  @override
+  void didUpdateWidget(FeedSectionContent old) {
+    super.didUpdateWidget(old);
+    if (old.section != widget.section) {
+      _direction = widget.section.index < old.section.index ? -1 : 1;
+    }
+  }
+
+  FeedSection get section => widget.section;
+
+  @override
+  Widget build(BuildContext context) {
     return AsyncSliver(
       value: ref.watch(feedPicturesProvider(section)),
       fillRemaining: true,
@@ -31,6 +49,7 @@ class FeedSectionContent extends ConsumerWidget {
                   (id: picture.id, assetDir: picture.assetDir),
               ],
               padding: const EdgeInsets.symmetric(horizontal: 16),
+              slideDirection: _direction,
             ),
     );
   }

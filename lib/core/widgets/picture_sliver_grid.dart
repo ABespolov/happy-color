@@ -9,12 +9,17 @@ class PictureSliverGrid extends StatelessWidget {
     super.key,
     required this.pictures,
     this.padding = const EdgeInsets.fromLTRB(16, 8, 16, 0),
+    this.slideDirection = 1,
   });
 
   /// Picture ids with the folder each one is stored in.
   final List<({String id, String assetDir})> pictures;
 
   final EdgeInsets padding;
+
+  /// Which way the pictures slide in when the list changes, see
+  /// [PictureTile.slideDirection].
+  final int slideDirection;
 
   /// How far beyond the screen a grid keeps its cards built, so the pictures
   /// of the next rows are decoded before they scroll into view.
@@ -32,11 +37,12 @@ class PictureSliverGrid extends StatelessWidget {
         ),
         itemCount: pictures.length,
         // Cells are kept by position on purpose: when the list changes, as
-        // on a category switch, every cell stays where it is and cross-fades
+        // on a category switch, every cell stays where it is and slides
         // from the picture it showed to the one it shows now.
         itemBuilder: (context, index) => PictureTile(
           id: pictures[index].id,
           assetDir: pictures[index].assetDir,
+          slideDirection: slideDirection,
         ),
       ),
     );

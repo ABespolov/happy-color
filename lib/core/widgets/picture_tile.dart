@@ -13,10 +13,19 @@ import 'package:happy_color/features/progress/presentation/widgets/picture_actio
 /// A picture in a grid: opens it for coloring, stars it on a long press and
 /// shows how far it is colored.
 class PictureTile extends ConsumerWidget {
-  const PictureTile({super.key, required this.id, required this.assetDir});
+  const PictureTile({
+    super.key,
+    required this.id,
+    required this.assetDir,
+    this.slideDirection = 1,
+  });
 
   final String id;
   final String assetDir;
+
+  /// Where a new picture comes in from when the card is given one: 1 from
+  /// the right, -1 from the left. The old picture leaves the other way.
+  final int slideDirection;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -40,12 +49,26 @@ class PictureTile extends ConsumerWidget {
         onLongPress: () =>
             ref.read(progressProvider.notifier).toggleStarred(id, assetDir),
         // A new card eases in; one given another picture, as on a category
-        // switch, cross-fades to it.
+        // switch, slides it in the way the tabs moved while the old one
+        // slides out, within the card's rounded clip.
         child: Appear(
           child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            switchInCurve: Curves.easeOut,
-            switchOutCurve: Curves.easeOut,
+            duration: const Duration(milliseconds: 320),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeOutCubic,
+            transitionBuilder: (child, animation) {
+              final incoming = child.key == ValueKey(id);
+              return SlideTransition(
+                position: Tween(
+                  begin: Offset(
+                    (incoming ? slideDirection : -slideDirection).toDouble(),
+                    0,
+                  ),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
+              );
+            },
             child: Stack(
               key: ValueKey(id),
               fit: StackFit.expand,
