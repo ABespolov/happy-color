@@ -33,12 +33,8 @@ class AppTabBar extends StatelessWidget {
           ),
         ],
       ),
-      // The home indicator inset would leave a wide empty strip under the
-      // labels, so only part of it is kept.
       child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewPaddingOf(context).bottom.clamp(0.0, 20.0),
-        ),
+        padding: EdgeInsets.only(bottom: _bottomInset(context)),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           child: Row(
@@ -58,6 +54,25 @@ class AppTabBar extends StatelessWidget {
       ),
     );
   }
+
+  /// A gesture bar only needs part of its inset, otherwise the labels sit on
+  /// a wide empty strip; the buttons of a navigation bar need all of theirs,
+  /// or they cover the labels. Where the system leaves no inset at all, the
+  /// labels still keep some room instead of touching the screen edge.
+  static double _bottomInset(BuildContext context) {
+    final inset = MediaQuery.viewPaddingOf(context).bottom;
+    final room = inset > _gestureBarHeight
+        ? inset
+        : inset.clamp(_minimumInset, 20.0);
+    // Plus a gap, so the labels never sit right on the system bar.
+    return room + _gap;
+  }
+
+  /// Anything taller than this is a navigation bar with buttons.
+  static const _gestureBarHeight = 36.0;
+
+  static const _minimumInset = 12.0;
+  static const _gap = 8.0;
 
   static String _labelOf(AppTab tab, AppLocalizations l10n) => switch (tab) {
     AppTab.myFeed => l10n.myFeedTab,

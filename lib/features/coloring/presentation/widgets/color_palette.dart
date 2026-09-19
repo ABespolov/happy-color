@@ -13,7 +13,7 @@ class ColorPalette extends StatelessWidget {
     return Material(
       elevation: 8,
       child: SizedBox(
-        height: 84 + MediaQuery.paddingOf(context).bottom,
+        height: 84 + _bottomInset(context),
         child: ListenableBuilder(
           listenable: Listenable.merge([controller.selectedColor, controller]),
           builder: (context, _) => ListView.separated(
@@ -22,7 +22,7 @@ class ColorPalette extends StatelessWidget {
               16,
               12,
               16,
-              12 + MediaQuery.paddingOf(context).bottom,
+              12 + _bottomInset(context),
             ),
             itemCount: palette.length,
             separatorBuilder: (_, _) => const SizedBox(width: 12),
@@ -44,6 +44,11 @@ class ColorPalette extends StatelessWidget {
     );
   }
 }
+
+/// Room under the colors, so they never touch the edge of the screen even
+/// where the system leaves no inset.
+double _bottomInset(BuildContext context) =>
+    MediaQuery.viewPaddingOf(context).bottom.clamp(8.0, 34.0) + 8;
 
 class _PaletteItem extends StatelessWidget {
   const _PaletteItem({
