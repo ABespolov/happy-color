@@ -46,16 +46,29 @@ class _AppearState extends State<Appear> with SingleTickerProviderStateMixin {
     end: 1,
   ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
 
+  var _started = false;
+
+  /// The animation starts the first time the widget is both shown and in
+  /// sight. A card in a tab that is not on screen has its tickers muted: an
+  /// animation started there would count the time it spent muted and be
+  /// over the moment the tab slides in, so the card would just pop up.
+  void _startIfSeen() {
+    if (_started || !widget.shown) return;
+    if (!TickerMode.valuesOf(context).enabled) return;
+    _started = true;
+    _controller.forward(from: 0);
+  }
+
   @override
-  void initState() {
-    super.initState();
-    if (widget.shown) _controller.forward();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _startIfSeen();
   }
 
   @override
   void didUpdateWidget(Appear old) {
     super.didUpdateWidget(old);
-    if (widget.shown && !old.shown) _controller.forward();
+    _startIfSeen();
   }
 
   @override

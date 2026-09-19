@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:happy_color/core/widgets/fade_in_frame.dart';
 import 'package:happy_color/core/widgets/picture_thumbnail.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/preview_cache.dart';
 
@@ -170,6 +171,9 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
               cacheWidth: pictureThumbnailWidth(context),
               fit: BoxFit.contain,
               gaplessPlayback: true,
+              // Not cached yet for a picture that was started: its card
+              // never showed the plain line art.
+              frameBuilder: fadeInFrame,
             )
           : RawImage(key: ObjectKey(ready), image: ready, fit: BoxFit.contain),
     );
