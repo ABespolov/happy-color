@@ -71,6 +71,18 @@ class PreviewCache {
 
   ui.Image? ready(PreviewKey key) => _ready[key];
 
+  /// A finished preview of the same picture with the same regions colored at
+  /// some other size: a card's preview stands in for a full-screen one while
+  /// that one is being rendered.
+  PreviewKey? readyAtOtherSize(PreviewKey key) {
+    for (final other in _ready.keys) {
+      if (other.assetDir == key.assetDir && other._filled == key._filled) {
+        return other;
+      }
+    }
+    return null;
+  }
+
   /// Cards in view hold on to the preview they paint, so it is not disposed
   /// of under them when the cache runs out of room.
   final _held = <PreviewKey, int>{};

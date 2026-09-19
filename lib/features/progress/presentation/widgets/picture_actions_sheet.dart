@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:happy_color/app/router.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
+import 'package:happy_color/features/coloring/presentation/providers/coloring_scene.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/colored_preview.dart';
 import 'package:happy_color/features/progress/domain/entities/picture_progress.dart';
 import 'package:happy_color/features/progress/presentation/providers/progress_providers.dart';
@@ -31,6 +32,9 @@ class PictureActionsSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
+    // Whichever action is picked opens the picture, so its textures are
+    // decoded while the sheet is up rather than once the page is.
+    ref.read(coloringSceneLoaderProvider).warm(progress.assetDir);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),

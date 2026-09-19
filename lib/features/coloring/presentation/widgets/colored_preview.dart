@@ -38,11 +38,10 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
   /// Kept in a field: `ref` cannot be read while the widget is disposed of.
   late final PreviewCache _cache = ref.read(previewCacheProvider);
 
-  late Future<ui.Image> _image;
-
-  /// The preview to paint right now: the one the cache already has, or the
-  /// one shown until a newer one finishes. Without it a card would go blank
-  /// for a moment every time what is colored changes.
+  /// The preview to paint right now: the one the cache already has, the one
+  /// of the same picture at another size, or the one shown until a newer
+  /// one finishes. Without it a card would go blank for a moment every time
+  /// what is colored changes.
   ui.Image? _ready;
 
   Timer? _pending;
@@ -55,7 +54,7 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
   @override
   void initState() {
     super.initState();
-    _image = _fromCache();
+    _request();
   }
 
   @override
@@ -67,20 +66,10 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
       // A burst of taps while coloring would otherwise build a preview for
       // every one of them; the last state is the only one worth having.
       _pending?.cancel();
-      _pending = Timer(const Duration(milliseconds: 150), () {
-        setState(() => _image = _fromCache());
-        // Swap the old preview for the new one only once it is there.
-        final rendering = _rendering;
-        _image.then((image) {
-          if (!mounted) return;
-          setState(() => _ready = image);
-          // The older preview is only let go once the newer one shows.
-          if (_painted != rendering) {
-            _release(_painted);
-            _painted = rendering;
-          }
-        }).ignore();
-      });
+      _pending = Timer(
+        const Duration(milliseconds: 150),
+        () => setState(_request),
+      );
     }
   }
 
@@ -95,6 +84,22 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
   void _release(PreviewKey? key) {
     if (key == null) return;
     _cache.release(key);
+  }
+
+  /// Asks the cache for the preview; whatever is on screen stays up until
+  /// the new one is there.
+  void _request() {
+    final image = _fromCache();
+    final rendering = _rendering;
+    image.then((image) {
+      if (!mounted) return;
+      setState(() => _ready = image);
+      // The older preview is only let go once the newer one shows.
+      if (_painted != rendering) {
+        _release(_painted);
+        _painted = rendering;
+      }
+    }).ignore();
   }
 
   /// The cache owns the image, so this widget never disposes of it.
@@ -113,6 +118,15 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
       _ready = ready;
       _release(_painted);
       _painted = key;
+    } else if (_ready == null) {
+      // A sheet or a page opens on the card's preview, scaled up, rather
+      // than on a blank square.
+      final other = cache.readyAtOtherSize(key);
+      if (other != null) {
+        cache.retain(other);
+        _painted = other;
+        _ready = cache.ready(other);
+      }
     }
     return coloredPreview(
       cache,
@@ -125,37 +139,18 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
   @override
   Widget build(BuildContext context) {
     final ready = _ready;
-    final colors = ready != null
-        ? RawImage(image: ready, fit: BoxFit.contain)
-        : FutureBuilder(
-            future: _image,
-            builder: (context, snapshot) => AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: snapshot.hasData
-                  ? RawImage(image: snapshot.data, fit: BoxFit.contain)
-                  : const ColoredBox(color: Colors.white),
-            ),
-          );
-    // The line art is the same whatever is colored, so it is not baked into
-    // every preview: the image cache keeps one copy per picture and size.
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        colors,
-        Image.asset(
-          linesAsset(widget.assetDir, widget.size),
-          cacheWidth: widget.size,
-          fit: BoxFit.contain,
-          gaplessPlayback: true,
-        ),
-      ],
+    // A preview that is there from the start is drawn as it is; one that
+    // arrives later, or replaces a coarser one, is faded in.
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeOut,
+      child: ready == null
+          ? const ColoredBox(key: ValueKey('blank'), color: Colors.white)
+          : RawImage(key: ObjectKey(ready), image: ready, fit: BoxFit.contain),
     );
   }
 }
-
-/// The line art drawn over a preview of [size].
-String linesAsset(String assetDir, int size) =>
-    '$assetDir/${size <= ColoredPreview.thumbnailSize ? 'lines_thumb' : 'lines'}.webp';
 
 /// The preview of a picture at [size], built only if the cache does not have
 /// it yet. The cache keeps and disposes of the image.
@@ -176,9 +171,10 @@ Future<ui.Image> _render(
   Set<int> filled,
 ) async {
   final small = size <= ColoredPreview.thumbnailSize;
-  final (regions, artwork) = await (
+  final (regions, artwork, lines) = await (
     cache.regionMap(assetDir, () => loadRegionMap(assetDir)),
     _load('$assetDir/${small ? 'artwork_thumb' : 'artwork'}.webp', size),
+    _load('$assetDir/${small ? 'lines_thumb' : 'lines'}.webp', size),
   ).wait;
 
   final artworkBytes = (await artwork.toByteData())!.buffer.asUint8List();
@@ -194,7 +190,18 @@ Future<ui.Image> _render(
     filled: filled,
     size: size,
   );
-  return decodePixels(pixels, size, size);
+  final painted = await decodePixels(pixels, size, size);
+
+  final recorder = ui.PictureRecorder();
+  ui.Canvas(recorder)
+    ..drawImage(painted, Offset.zero, Paint())
+    ..drawImage(lines, Offset.zero, Paint());
+  final picture = recorder.endRecording();
+  final image = await picture.toImage(size, size);
+  picture.dispose();
+  lines.dispose();
+  painted.dispose();
+  return image;
 }
 
 /// The region map keeps its own resolution: scaling it would blend the region
