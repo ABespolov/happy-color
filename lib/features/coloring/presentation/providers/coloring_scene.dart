@@ -49,6 +49,13 @@ class ColoringSceneLoader {
   /// The one scene loaded ahead of time, and the folder it is for.
   (String, Future<ColoringScene>)? _warmed;
 
+  Future<ui.FragmentProgram>? _program;
+
+  /// The coloring shader, read from the bundle the first time it is asked
+  /// for and kept from then on.
+  Future<ui.FragmentProgram> get program =>
+      _program ??= ui.FragmentProgram.fromAsset('shaders/coloring.frag');
+
   /// Starts loading the scene of [assetDir] unless it is on its way already.
   void warm(String assetDir) {
     if (_warmed?.$1 == assetDir) return;
@@ -76,7 +83,7 @@ class ColoringSceneLoader {
 
   Future<ColoringScene> _load(String dir) async {
     final (program, json, regions, artwork, lines) = await (
-      ui.FragmentProgram.fromAsset('shaders/coloring.frag'),
+      this.program,
       rootBundle.loadString('$dir/picture.json'),
       // The preview of this picture has decoded its region map already, so
       // the texture is uploaded from those pixels instead of decoded again.

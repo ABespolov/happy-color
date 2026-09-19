@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/core/widgets/picture_tile.dart';
+import 'package:happy_color/features/coloring/presentation/providers/coloring_scene.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/colored_preview.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/preview_cache.dart';
 import 'package:happy_color/features/library/presentation/providers/library_providers.dart';
@@ -16,18 +17,56 @@ class Startup {
 
   final Ref ref;
 
-  /// How long the splash screen may wait for all of this.
+  /// How long the splash screen may wait for [warmUp].
   static const timeout = Duration(seconds: 2);
 
   static const _cards = 6;
 
-  Future<void> warmUp(BuildContext context) async {
+  /// What the app opens on: the feed of pictures being colored. The splash
+  /// screen waits for this and nothing else.
+  Future<void> warmUp(BuildContext context) =>
+      _feed(context).timeout(timeout, onTimeout: () {});
+
+  /// What the screens after that show: the library and the coloring page.
+  /// Runs behind the feed once it is up.
+  Future<void> warmUpBehind(BuildContext context) async {
+    // The shader is read from the bundle once; the coloring page finds it
+    // ready.
+    ref.read(coloringSceneLoaderProvider).program.ignore();
     final width = MediaQuery.sizeOf(context).width;
     final pixels = MediaQuery.devicePixelRatioOf(context);
     await Future.wait([
       _banners(context, (width * pixels).round()),
-      _cardPictures(context),
-    ]).timeout(timeout, onTimeout: () => const []);
+      _libraryCards(context),
+    ]);
+  }
+
+  /// The previews of the pictures being colored, or the illustration of the
+  /// empty feed when there are none.
+  Future<void> _feed(BuildContext context) async {
+    final progress = await ref.read(progressProvider.future);
+    if (!context.mounted) return;
+    final cache = ref.read(previewCacheProvider);
+    final started = progress.values
+        .where((p) => p.isStarted && !p.isCompleted)
+        .take(_cards)
+        .toList();
+    if (started.isEmpty) {
+      await precacheImage(
+        const AssetImage('assets/illustrations/completed_empty.png'),
+        context,
+      );
+      return;
+    }
+    await Future.wait([
+      for (final picture in started)
+        coloredPreview(
+          cache,
+          assetDir: picture.assetDir,
+          size: ColoredPreview.cardSize,
+          filled: picture.filled,
+        ),
+    ]);
   }
 
   /// Library opens on its banners, and they are the largest images around.
@@ -41,12 +80,10 @@ class Startup {
     ]);
   }
 
-  /// The first cards of the library, and the previews of whatever the user was
-  /// coloring last time.
-  Future<void> _cardPictures(BuildContext context) async {
+  /// The first cards of the library.
+  Future<void> _libraryCards(BuildContext context) async {
     final pictures = await ref.read(libraryPicturesProvider('all').future);
     final progress = await ref.read(progressProvider.future);
-    final cache = ref.read(previewCacheProvider);
     if (!context.mounted) return;
     final thumbnailWidth = pictureThumbnailWidth(context);
     await Future.wait([
@@ -59,14 +96,6 @@ class Startup {
             ),
             context,
           ),
-      for (final started
-          in progress.values.where((p) => p.isStarted).take(_cards))
-        coloredPreview(
-          cache,
-          assetDir: started.assetDir,
-          size: ColoredPreview.cardSize,
-          filled: started.filled,
-        ),
     ]);
   }
 }

@@ -11,7 +11,9 @@ class SplashGate extends ConsumerStatefulWidget {
   final Widget child;
 
   /// Shown at least this long, so a fast start does not flash.
-  static const _minimum = Duration(milliseconds: 900);
+  static const _minimum = Duration(milliseconds: 500);
+
+  static const _fade = Duration(milliseconds: 450);
 
   @override
   ConsumerState<SplashGate> createState() => _SplashGateState();
@@ -27,11 +29,17 @@ class _SplashGateState extends ConsumerState<SplashGate> {
   }
 
   Future<void> _warmUp() async {
+    final startup = ref.read(startupProvider);
     await Future.wait([
-      ref.read(startupProvider).warmUp(context),
+      startup.warmUp(context),
       Future<void>.delayed(SplashGate._minimum),
     ]);
-    if (mounted) setState(() => _ready = true);
+    if (!mounted) return;
+    setState(() => _ready = true);
+    // The other screens are warmed up once the splash has faded out, so the
+    // fade does not share its frames with the decoding.
+    await Future<void>.delayed(SplashGate._fade);
+    if (mounted) await startup.warmUpBehind(context);
   }
 
   @override
@@ -41,7 +49,7 @@ class _SplashGateState extends ConsumerState<SplashGate> {
     return DecoratedBox(
       decoration: PageHeader.background,
       child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 450),
+        duration: SplashGate._fade,
         child: _ready ? widget.child : const _Splash(),
       ),
     );
