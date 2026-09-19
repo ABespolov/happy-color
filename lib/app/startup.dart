@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:happy_color/core/widgets/picture_tile.dart';
+import 'package:happy_color/core/widgets/picture_thumbnail.dart';
 import 'package:happy_color/features/coloring/presentation/providers/coloring_scene.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/colored_preview.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/preview_cache.dart';

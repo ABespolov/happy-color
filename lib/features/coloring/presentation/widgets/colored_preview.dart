@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:happy_color/core/widgets/picture_thumbnail.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/preview_cache.dart';
 
 /// Shows a picture the way the user left it: colored regions come from the
@@ -153,13 +154,23 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
   Widget build(BuildContext context) {
     final ready = _ready;
     // A preview that is there from the start is drawn as it is; one that
-    // arrives later, or replaces a coarser one, is faded in.
+    // arrives later, or replaces a coarser one, is faded in over the line
+    // art. The line art is what the cards show for untouched pictures and
+    // sits in the image cache at the same width, so it is there at once and
+    // the colors come in over it rather than the whole picture popping
+    // into an empty square.
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 300),
       switchInCurve: Curves.easeOut,
       switchOutCurve: Curves.easeOut,
       child: ready == null
-          ? const ColoredBox(key: ValueKey('blank'), color: Colors.white)
+          ? Image.asset(
+              '${widget.assetDir}/lines_thumb.webp',
+              key: const ValueKey('lines'),
+              cacheWidth: pictureThumbnailWidth(context),
+              fit: BoxFit.contain,
+              gaplessPlayback: true,
+            )
           : RawImage(key: ObjectKey(ready), image: ready, fit: BoxFit.contain),
     );
   }

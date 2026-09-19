@@ -2,21 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
 import 'package:happy_color/core/widgets/fade_in_frame.dart';
+import 'package:happy_color/core/widgets/picture_thumbnail.dart';
 import 'package:go_router/go_router.dart';
 import 'package:happy_color/app/router.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/colored_preview.dart';
 import 'package:happy_color/features/progress/domain/entities/picture_progress.dart';
 import 'package:happy_color/features/progress/presentation/providers/progress_providers.dart';
 import 'package:happy_color/features/progress/presentation/widgets/picture_actions_sheet.dart';
-
-/// Decodes a card picture no larger than the cell it is shown in.
-int pictureThumbnailWidth(BuildContext context) {
-  final cell = MediaQuery.sizeOf(context).width / 2;
-  return (cell * MediaQuery.devicePixelRatioOf(context)).round().clamp(
-    200,
-    512,
-  );
-}
 
 /// A picture in a grid: opens it for coloring, stars it on a long press and
 /// shows how far it is colored.
