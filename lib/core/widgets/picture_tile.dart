@@ -52,22 +52,32 @@ class PictureTile extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.all(12),
-              // A picture in progress shows the colors it has so far, a
-              // finished one all of them, an untouched one its lines.
-              child: switch (progress) {
-                PictureProgress(isStarted: true, :final filled)
-                    when !completed =>
-                  ColoredPreview(assetDir: assetDir, filled: filled, size: 400),
-                // The thumbnails keep a grid of cards from decoding pictures
-                // many times the size of a cell.
-                _ => Image.asset(
-                  '$assetDir/'
-                  '${completed ? 'artwork_thumb' : 'lines_thumb'}.webp',
-                  cacheWidth: pictureThumbnailWidth(context),
-                  gaplessPlayback: true,
-                  frameBuilder: fadeInFrame,
-                ),
-              },
+              // Every card comes in the same way when it is created, whether
+              // its picture is in a cache already or not. Cards are created
+              // well below the screen while scrolling, so there it plays
+              // out of sight.
+              child: Appear(
+                // A picture in progress shows the colors it has so far, a
+                // finished one all of them, an untouched one its lines.
+                child: switch (progress) {
+                  PictureProgress(isStarted: true, :final filled)
+                      when !completed =>
+                    ColoredPreview(
+                      assetDir: assetDir,
+                      filled: filled,
+                      size: 400,
+                    ),
+                  // The thumbnails keep a grid of cards from decoding
+                  // pictures many times the size of a cell.
+                  _ => Image.asset(
+                    '$assetDir/'
+                    '${completed ? 'artwork_thumb' : 'lines_thumb'}.webp',
+                    cacheWidth: pictureThumbnailWidth(context),
+                    gaplessPlayback: true,
+                    frameBuilder: fadeInFrame,
+                  ),
+                },
+              ),
             ),
             if (progress case PictureProgress(isStarted: true, :final fraction)
                 when !completed)

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 /// A `frameBuilder` for [Image]: a picture that is still decoding eases in
-/// once it arrives, growing slightly as it fades, while one the image cache
-/// already has is drawn as it is, so a grid seen before comes back without a
-/// flicker.
+/// once it arrives, while one the image cache already has is drawn as it
+/// is. Used inside an [Appear], which plays the same motion for the card
+/// itself, so a late picture does not pop into a card that has settled.
 Widget fadeInFrame(
   BuildContext context,
   Widget child,
@@ -11,24 +11,27 @@ Widget fadeInFrame(
   bool wasSynchronouslyLoaded,
 ) {
   if (wasSynchronouslyLoaded) return child;
-  return _Appear(shown: frame != null, child: child);
+  return Appear(shown: frame != null, child: child);
 }
 
-class _Appear extends StatefulWidget {
-  const _Appear({required this.shown, required this.child});
+/// Eases its child in, growing slightly as it fades, once [shown] is true.
+/// Plays every time the widget is created, whether or not what it shows
+/// was ready already, so cards come in the same way whatever the cache
+/// holds.
+class Appear extends StatefulWidget {
+  const Appear({super.key, this.shown = true, required this.child});
 
   final bool shown;
   final Widget child;
 
   @override
-  State<_Appear> createState() => _AppearState();
+  State<Appear> createState() => _AppearState();
 }
 
-class _AppearState extends State<_Appear> with SingleTickerProviderStateMixin {
+class _AppearState extends State<Appear> with SingleTickerProviderStateMixin {
   late final _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 600),
-    value: widget.shown ? 1 : 0,
   );
 
   late final _opacity = CurvedAnimation(
@@ -44,7 +47,13 @@ class _AppearState extends State<_Appear> with SingleTickerProviderStateMixin {
   ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
 
   @override
-  void didUpdateWidget(_Appear old) {
+  void initState() {
+    super.initState();
+    if (widget.shown) _controller.forward();
+  }
+
+  @override
+  void didUpdateWidget(Appear old) {
     super.didUpdateWidget(old);
     if (widget.shown && !old.shown) _controller.forward();
   }
