@@ -35,6 +35,7 @@ class ColorPalette extends StatelessWidget {
             itemBuilder: (context, i) {
               final progress = controller.progress(i);
               return _PaletteItem(
+                key: ValueKey(i),
                 color: palette[i],
                 number: i + 1,
                 progress: progress,
@@ -58,6 +59,7 @@ double _bottomInset(BuildContext context) =>
 
 class _PaletteItem extends StatelessWidget {
   const _PaletteItem({
+    super.key,
     required this.color,
     required this.number,
     required this.progress,

@@ -39,6 +39,7 @@ class AppTabBar extends StatelessWidget {
               for (final tab in AppTab.values)
                 Expanded(
                   child: TabBarItem(
+                    key: ValueKey(tab),
                     icon: _iconOf(tab),
                     label: _labelOf(tab, l10n),
                     selected: tab.index == selectedIndex,

@@ -50,6 +50,7 @@ class SectionSwitcher extends StatelessWidget {
             children: [
               for (final section in sections)
                 Expanded(
+                  key: ValueKey(section),
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () => onSelected(section),

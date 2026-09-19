@@ -89,6 +89,7 @@ class _BannerCarouselState extends State<BannerCarousel> {
                 itemBuilder: (context, index) {
                   final banner = widget.banners[index];
                   return Padding(
+                    key: ValueKey(banner.id),
                     padding: const EdgeInsets.symmetric(horizontal: _gap),
                     child: GestureDetector(
                       onTap: () => context.push(Routes.collection(banner.id)),

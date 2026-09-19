@@ -60,19 +60,26 @@ class _TabSwitcherState extends State<TabSwitcher>
   Widget _tab(int index, double t, {required Widget child}) {
     final selected = index == widget.index;
     final leaving = index == _previous && !selected && t < 1;
-    if (!selected && !leaving) {
-      // Off-screen tabs stay in the tree, keeping their state and scroll
-      // position, but take no hits and paint nothing.
-      return Offstage(child: TickerMode(enabled: false, child: child));
-    }
+    final shown = selected || leaving;
     // Both tabs move by a full screen width, so they stay edge to edge.
     final direction = _forward ? 1.0 : -1.0;
     final offset = selected ? direction * (1 - t) : -direction * t;
-    return IgnorePointer(
-      ignoring: !selected,
-      child: FractionalTranslation(
-        translation: Offset(offset, 0),
-        child: child,
+    // Off-screen tabs stay in the tree, keeping their state and scroll
+    // position, but take no hits and paint nothing. The shape of this wrapping
+    // never changes: swapping one widget for another here would throw the tab
+    // underneath away and build it again from scratch.
+    return Offstage(
+      key: ValueKey(index),
+      offstage: !shown,
+      child: TickerMode(
+        enabled: shown,
+        child: IgnorePointer(
+          ignoring: !selected,
+          child: FractionalTranslation(
+            translation: Offset(shown ? offset : 0, 0),
+            child: child,
+          ),
+        ),
       ),
     );
   }

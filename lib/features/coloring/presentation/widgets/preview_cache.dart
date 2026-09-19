@@ -71,6 +71,26 @@ class PreviewCache {
 
   ui.Image? ready(PreviewKey key) => _ready[key];
 
+  /// Cards in view hold on to the preview they paint, so it is not disposed
+  /// of under them when the cache runs out of room.
+  final _held = <PreviewKey, int>{};
+
+  void retain(PreviewKey key) =>
+      _held.update(key, (count) => count + 1, ifAbsent: () => 1);
+
+  void release(PreviewKey key) {
+    final count = (_held[key] ?? 1) - 1;
+    if (count > 0) {
+      _held[key] = count;
+      return;
+    }
+    _held.remove(key);
+    if (!_entries.containsKey(key)) _dispose(key);
+  }
+
+  /// Previews that were dropped while a card was still painting them.
+  final _disposeWhenFree = <PreviewKey, Future<ui.Image>>{};
+
   /// Decoded region maps, by picture folder. The map of a picture is the same
   /// whatever is colored in it, so it is worth keeping while its previews are
   /// being rebuilt tap after tap.
@@ -129,20 +149,27 @@ class PreviewCache {
     _ready.remove(key);
     if (image == null) return;
     _bytes -= key.size * key.size * 4;
-    // The widget that asked for it may still be painting it, so let the frame
-    // finish before the image goes away.
+    _disposeWhenFree[key] = image;
+    if (!_held.containsKey(key)) _dispose(key);
+  }
+
+  void _dispose(PreviewKey key) {
+    final image = _disposeWhenFree.remove(key);
+    if (image == null) return;
+    // The card may still be painting it, so let the frame finish first.
     image
         .then(
           (image) => WidgetsBinding.instance.addPostFrameCallback(
             (_) => image.dispose(),
           ),
         )
-        .catchError((_) {});
+        .catchError((Object _) {});
   }
 
   void clear() {
     worker.dispose();
     _ready.clear();
+    _held.clear();
     _regionMaps.clear();
     for (final key in _entries.keys.toList()) {
       _drop(key);

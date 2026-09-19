@@ -44,6 +44,11 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
 
   Timer? _pending;
 
+  /// The preview this card paints, held so the cache keeps it alive, and the
+  /// newer one being rendered, held so it is not dropped before it is shown.
+  PreviewKey? _painted;
+  PreviewKey? _rendering;
+
   @override
   void didUpdateWidget(ColoredPreview old) {
     super.didUpdateWidget(old);
@@ -56,8 +61,15 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
       _pending = Timer(const Duration(milliseconds: 150), () {
         setState(() => _image = _fromCache());
         // Swap the old preview for the new one only once it is there.
+        final rendering = _rendering;
         _image.then((image) {
-          if (mounted) setState(() => _ready = image);
+          if (!mounted) return;
+          setState(() => _ready = image);
+          // The older preview is only let go once the newer one shows.
+          if (_painted != rendering) {
+            _release(_painted);
+            _painted = rendering;
+          }
         }).ignore();
       });
     }
@@ -66,7 +78,14 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
   @override
   void dispose() {
     _pending?.cancel();
+    _release(_painted);
+    if (_rendering != _painted) _release(_rendering);
     super.dispose();
+  }
+
+  void _release(PreviewKey? key) {
+    if (key == null) return;
+    ref.read(previewCacheProvider).release(key);
   }
 
   /// The cache owns the image, so this widget never disposes of it.
@@ -77,7 +96,15 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
       size: widget.size,
       filled: widget.filled,
     );
-    _ready = cache.ready(key) ?? _ready;
+    cache.retain(key);
+    if (_rendering != _painted) _release(_rendering);
+    _rendering = key;
+    final ready = cache.ready(key);
+    if (ready != null) {
+      _ready = ready;
+      _release(_painted);
+      _painted = key;
+    }
     return coloredPreview(
       cache,
       assetDir: widget.assetDir,
