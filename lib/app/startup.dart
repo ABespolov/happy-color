@@ -7,6 +7,7 @@ import 'package:happy_color/features/coloring/presentation/providers/coloring_sc
 import 'package:happy_color/features/coloring/presentation/widgets/colored_preview.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/preview_cache.dart';
 import 'package:happy_color/features/library/presentation/providers/library_providers.dart';
+import 'package:happy_color/features/library/presentation/widgets/banner_card.dart';
 import 'package:happy_color/features/progress/presentation/providers/progress_providers.dart';
 
 /// Warms up what the first screens show, so they do not appear empty and then
@@ -33,10 +34,8 @@ class Startup {
     // The shader is read from the bundle once; the coloring page finds it
     // ready.
     ref.read(coloringSceneLoaderProvider).program.ignore();
-    final width = MediaQuery.sizeOf(context).width;
-    final pixels = MediaQuery.devicePixelRatioOf(context);
     await Future.wait([
-      _banners(context, (width * pixels).round()),
+      _banners(context, BannerCard.cacheWidth(context)),
       _libraryCards(context),
     ]);
   }

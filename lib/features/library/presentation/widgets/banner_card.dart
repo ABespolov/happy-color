@@ -17,13 +17,25 @@ class BannerCard extends StatelessWidget {
     [Color(0xFFD9C2F0), Color(0xFFA785D6)],
   ];
 
+  /// Banners are decoded no wider than the screen, in the carousel, on the
+  /// collection page and when warmed up at startup alike, so the image cache
+  /// holds one copy of each.
+  static int cacheWidth(BuildContext context) =>
+      (MediaQuery.sizeOf(context).width *
+              MediaQuery.devicePixelRatioOf(context))
+          .round();
+
   @override
   Widget build(BuildContext context) {
     final image = banner.imageAsset;
     return ClipRRect(
       borderRadius: BorderRadius.circular(28),
       child: image != null
-          ? Image.asset(image, fit: BoxFit.cover)
+          ? Image.asset(
+              image,
+              fit: BoxFit.cover,
+              cacheWidth: cacheWidth(context),
+            )
           : DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(

@@ -21,7 +21,10 @@ class ColorPalette extends StatelessWidget {
       child: SizedBox(
         height: heightOf(context),
         child: ListenableBuilder(
-          listenable: Listenable.merge([controller.selectedColor, controller]),
+          listenable: Listenable.merge([
+            controller.selectedColor,
+            controller.fills,
+          ]),
           builder: (context, _) => ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: EdgeInsets.fromLTRB(

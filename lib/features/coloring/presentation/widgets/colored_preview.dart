@@ -51,10 +51,19 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
   PreviewKey? _painted;
   PreviewKey? _rendering;
 
+  /// True while the preview on screen is not the one for [widget.filled]
+  /// and the card is out of sight: under the coloring page or in another
+  /// tab, where its tickers are off. Rendering waits until it shows again,
+  /// instead of running once per tap for a card nobody sees.
+  var _stale = true;
+
   @override
-  void initState() {
-    super.initState();
-    _request();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_stale && TickerMode.valuesOf(context).enabled) {
+      _stale = false;
+      _request();
+    }
   }
 
   @override
@@ -63,9 +72,13 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
     if (old.assetDir != widget.assetDir ||
         old.size != widget.size ||
         !setEquals(old.filled, widget.filled)) {
+      _pending?.cancel();
+      if (!TickerMode.valuesOf(context).enabled) {
+        _stale = true;
+        return;
+      }
       // A burst of taps while coloring would otherwise build a preview for
       // every one of them; the last state is the only one worth having.
-      _pending?.cancel();
       _pending = Timer(
         const Duration(milliseconds: 150),
         () => setState(_request),

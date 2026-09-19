@@ -6,6 +6,7 @@ import 'package:happy_color/core/theme/app_colors.dart';
 import 'package:happy_color/core/widgets/circle_icon_button.dart';
 import 'package:happy_color/features/library/presentation/providers/library_providers.dart';
 import 'package:happy_color/features/library/presentation/widgets/collection_counter.dart';
+import 'package:happy_color/features/library/presentation/widgets/banner_card.dart';
 import 'package:happy_color/features/library/presentation/widgets/category_pictures.dart';
 
 /// Everything behind one banner: its artwork and the pictures of its category.
@@ -79,7 +80,7 @@ class _CollectionPageState extends ConsumerState<CollectionPage> {
                       background: Stack(
                         fit: StackFit.expand,
                         children: [
-                          _artwork(banner?.imageAsset),
+                          _artwork(context, banner?.imageAsset),
                           if (pictures != null)
                             Positioned(
                               top: statusBar + 8,
@@ -127,9 +128,14 @@ class _CollectionPageState extends ConsumerState<CollectionPage> {
     );
   }
 
-  Widget _artwork(String? image) => image == null
+  Widget _artwork(BuildContext context, String? image) => image == null
       ? const ColoredBox(color: AppColors.placeholder)
-      : Image.asset(image, fit: BoxFit.cover, alignment: Alignment.topCenter);
+      : Image.asset(
+          image,
+          fit: BoxFit.cover,
+          alignment: Alignment.topCenter,
+          cacheWidth: BannerCard.cacheWidth(context),
+        );
 }
 
 /// Sits in a white circle over the artwork and loses it once the bar takes

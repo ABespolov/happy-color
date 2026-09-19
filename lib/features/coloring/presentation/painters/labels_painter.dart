@@ -30,15 +30,20 @@ class LabelsPainter extends CustomPainter {
 
   final _paint = Paint()..filterQuality = FilterQuality.medium;
 
+  /// Room for a label on every region, filled in on each paint: this runs
+  /// on every frame of a pan or a zoom, so it allocates nothing then.
+  late final _transforms = Float32List(controller.picture.regions.length * 4);
+  late final _rects = Float32List(controller.picture.regions.length * 4);
+
   @override
   void paint(Canvas canvas, Size size) {
     final pixelsPerUnit = fit.scale * transform.value.getMaxScaleOnAxis();
     final visible = visibleRect(transform, fit);
     final picture = controller.picture;
     final selected = controller.selectedColor.value;
+    final scale = _fontPx / pixelsPerUnit / LabelAtlas.fontSize;
 
-    final transforms = <double>[];
-    final rects = <double>[];
+    var n = 0;
     for (var id = 0; id < picture.regions.length; id++) {
       final region = picture.regions[id];
       if (region.labelRadius * pixelsPerUnit < _fontPx ||
@@ -51,24 +56,22 @@ class LabelsPainter extends CustomPainter {
         region.colorIndex,
         selected: region.colorIndex == selected,
       );
-      final scale = _fontPx / pixelsPerUnit / LabelAtlas.fontSize;
-      transforms
-        ..add(scale)
-        ..add(0)
-        ..add(region.labelAt.dx - scale * sprite.width / 2)
-        ..add(region.labelAt.dy - scale * sprite.height / 2);
-      rects
-        ..add(sprite.left)
-        ..add(sprite.top)
-        ..add(sprite.right)
-        ..add(sprite.bottom);
+      _transforms[n] = scale;
+      _transforms[n + 1] = 0;
+      _transforms[n + 2] = region.labelAt.dx - scale * sprite.width / 2;
+      _transforms[n + 3] = region.labelAt.dy - scale * sprite.height / 2;
+      _rects[n] = sprite.left;
+      _rects[n + 1] = sprite.top;
+      _rects[n + 2] = sprite.right;
+      _rects[n + 3] = sprite.bottom;
+      n += 4;
     }
-    if (rects.isEmpty) return;
+    if (n == 0) return;
 
     canvas.drawRawAtlas(
       labels.image,
-      Float32List.fromList(transforms),
-      Float32List.fromList(rects),
+      Float32List.sublistView(_transforms, 0, n),
+      Float32List.sublistView(_rects, 0, n),
       null,
       null,
       null,

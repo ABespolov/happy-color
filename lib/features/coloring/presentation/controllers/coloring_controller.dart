@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:ui' as ui;
 
 import 'package:flutter/animation.dart';
@@ -19,20 +20,20 @@ class ColoringController extends ChangeNotifier {
                .ceil() {
     animations = FillAnimations(vsync: vsync, onCompleted: _completeFills);
     _stateBytes = Uint8List(stateWidth * stateHeight * 4);
+    _filledByColor = List.filled(picture.palette.length, 0);
     for (var id = 0; id < picture.regions.length; id++) {
       _stateBytes[id * 4 + 2] = picture.regions[id].colorIndex;
       _stateBytes[id * 4 + 3] = 255;
     }
     for (final id in filled) {
-      if (id < picture.regions.length) {
-        _state[id] = _filled;
-        _stateBytes[id * 4] = 255;
-      }
+      if (id < picture.regions.length) _fill(id);
     }
     _uploadState();
   }
 
-  /// Called with every colored region whenever one more is filled.
+  /// Called whenever one more region is filled, with every colored region.
+  /// The set is live: it is the controller's own and changes with the next
+  /// fill, so it is copied if kept.
   final void Function(Set<int> filled)? onFilledChanged;
 
   static const _empty = 0, _animating = 1, _filled = 2;
@@ -52,17 +53,30 @@ class ColoringController extends ChangeNotifier {
   var _uploadVersion = 0;
 
   final Uint8List _state;
+  final _filledRegions = <int>{};
+  late final List<int> _filledByColor;
+
+  /// Bumped once per finished fill, for the palette to follow progress
+  /// without hearing about every animation start.
+  final fills = ValueNotifier<int>(0);
 
   bool isEmpty(int regionId) => _state[regionId] == _empty;
 
-  Set<int> get filledRegions => {
-    for (var id = 0; id < _state.length; id++)
-      if (_state[id] == _filled) id,
-  };
+  /// Every colored region, live.
+  late final Set<int> filledRegions = UnmodifiableSetView(_filledRegions);
 
-  double progress(int colorIndex) {
-    final ids = picture.regionsByColor[colorIndex];
-    return ids.where((id) => _state[id] == _filled).length / ids.length;
+  /// Share of the regions of a color that are filled, counted as they fill
+  /// rather than by going over the regions.
+  double progress(int colorIndex) =>
+      _filledByColor[colorIndex] / picture.regionsByColor[colorIndex].length;
+
+  void _fill(int id) {
+    _state[id] = _filled;
+    _stateBytes[id * 4] = 255;
+    _stateBytes[id * 4 + 1] = 0;
+    if (_filledRegions.add(id)) {
+      _filledByColor[picture.regions[id].colorIndex]++;
+    }
   }
 
   void tapAt(Offset scenePoint) {
@@ -85,13 +99,10 @@ class ColoringController extends ChangeNotifier {
   }
 
   void _completeFills(List<int> ids) {
-    for (final id in ids) {
-      _state[id] = _filled;
-      _stateBytes[id * 4] = 255;
-      _stateBytes[id * 4 + 1] = 0;
-    }
+    ids.forEach(_fill);
     _uploadState();
     notifyListeners();
+    fills.value++;
     onFilledChanged?.call(filledRegions);
 
     if (progress(selectedColor.value) >= 1) {
@@ -135,6 +146,7 @@ class ColoringController extends ChangeNotifier {
     stateImage.dispose();
     animations.dispose();
     selectedColor.dispose();
+    fills.dispose();
     super.dispose();
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/features/progress/presentation/providers/progress_providers.dart';
@@ -27,8 +29,15 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
       .read(coloringSceneLoaderProvider)
       .take(widget.assetDir);
 
-  /// Kept in a field: `ref` cannot be read once the page is being disposed of.
-  late final PreviewCache _previews = ref.read(previewCacheProvider);
+  /// Read up front: `ref` cannot be read once the page is being disposed of,
+  /// and that is when the card preview is warmed up.
+  late final PreviewCache _previews;
+
+  @override
+  void initState() {
+    super.initState();
+    _previews = ref.read(previewCacheProvider);
+  }
 
   /// What was colored when the page last saved, used to build the card-sized
   /// preview the grid will need.
@@ -46,6 +55,7 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
 
   @override
   void dispose() {
+    if (_save != null) _flush();
     _warmCardPreview();
     _scene.then((scene) => scene.dispose());
     super.dispose();
@@ -57,16 +67,36 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
       .of(widget.id, widget.assetDir)
       .filled;
 
+  /// Kept from the first save: `ref` is not read while the page is being
+  /// disposed of, and that is when the last save happens.
+  ProgressNotifier? _progress;
+
+  Timer? _save;
+
+  /// The controller's live set of colored regions, once a fill happened.
+  Set<int>? _pendingFilled;
+
+  /// Coloring produces a fill every few hundred milliseconds; encoding and
+  /// writing the whole progress for each would run on the UI thread as
+  /// often. Saves are gathered, and the last one goes out with the page.
   void _saveFilled(Set<int> filled) {
-    _lastSaved = filled;
-    ref
-        .read(progressProvider.notifier)
-        .setFilled(
-          widget.id,
-          widget.assetDir,
-          filled: filled,
-          regionCount: _regionCount,
-        );
+    _progress ??= ref.read(progressProvider.notifier);
+    _pendingFilled = filled;
+    _save?.cancel();
+    _save = Timer(const Duration(milliseconds: 400), _flush);
+  }
+
+  void _flush() {
+    _save?.cancel();
+    _save = null;
+    // The controller's set is live, so what is saved is a copy of it.
+    _lastSaved = Set.of(_pendingFilled!);
+    _progress?.setFilled(
+      widget.id,
+      widget.assetDir,
+      filled: _lastSaved,
+      regionCount: _regionCount,
+    );
   }
 
   var _regionCount = 0;
