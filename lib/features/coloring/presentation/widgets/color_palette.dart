@@ -1,8 +1,10 @@
+import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/material.dart';
 
 import 'package:happy_color/features/coloring/presentation/controllers/coloring_controller.dart';
 
-class ColorPalette extends StatelessWidget {
+class ColorPalette extends StatefulWidget {
   const ColorPalette({super.key, required this.controller});
 
   final ColoringController controller;
@@ -13,28 +15,77 @@ class ColorPalette extends StatelessWidget {
   static double heightOf(BuildContext context) =>
       _height + _bottomInset(context);
 
+  static const _item = 60.0;
+  static const _gap = 12.0;
+  static const _padding = 16.0;
+
+  @override
+  State<ColorPalette> createState() => _ColorPaletteState();
+}
+
+class _ColorPaletteState extends State<ColorPalette> {
+  final _scroll = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.selectedColor.addListener(_showSelected);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.selectedColor.removeListener(_showSelected);
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  /// Brings the selected color fully into view, with the next one peeking:
+  /// when a color is done, the one picked next is often off the edge.
+  void _showSelected() {
+    if (!_scroll.hasClients) return;
+    final i = widget.controller.selectedColor.value;
+    const step = ColorPalette._item + ColorPalette._gap;
+    final start = ColorPalette._padding + i * step;
+    final end = start + ColorPalette._item;
+    final viewport = _scroll.position.viewportDimension;
+    final offset = _scroll.offset;
+    final target = switch (0) {
+      _ when start - step < offset => start - step,
+      _ when end + step > offset + viewport => end + step - viewport,
+      _ => offset,
+    };
+    _scroll.animateTo(
+      target.clamp(0.0, _scroll.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final controller = widget.controller;
     final palette = controller.picture.palette;
     return Material(
       elevation: 8,
       child: SizedBox(
-        height: heightOf(context),
+        height: ColorPalette.heightOf(context),
         child: ListenableBuilder(
           listenable: Listenable.merge([
             controller.selectedColor,
             controller.fills,
           ]),
           builder: (context, _) => ListView.separated(
+            controller: _scroll,
             scrollDirection: Axis.horizontal,
             padding: EdgeInsets.fromLTRB(
-              16,
+              ColorPalette._padding,
               12,
-              16,
+              ColorPalette._padding,
               12 + _bottomInset(context),
             ),
             itemCount: palette.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 12),
+            separatorBuilder: (_, _) =>
+                const SizedBox(width: ColorPalette._gap),
             itemBuilder: (context, i) {
               final progress = controller.progress(i);
               return _PaletteItem(
@@ -60,6 +111,8 @@ class ColorPalette extends StatelessWidget {
 double _bottomInset(BuildContext context) =>
     MediaQuery.viewPaddingOf(context).bottom.clamp(8.0, 34.0) + 8;
 
+/// A color in the palette. Its ring grows with every fill, it rises when
+/// picked, and its number turns into a check once the color is done.
 class _PaletteItem extends StatelessWidget {
   const _PaletteItem({
     super.key,
@@ -76,6 +129,9 @@ class _PaletteItem extends StatelessWidget {
   final bool selected;
   final VoidCallback? onTap;
 
+  static const _duration = Duration(milliseconds: 300);
+  static const _curve = Curves.easeOutCubic;
+
   @override
   Widget build(BuildContext context) {
     final foreground =
@@ -84,39 +140,74 @@ class _PaletteItem extends StatelessWidget {
         : Colors.black87;
     return GestureDetector(
       onTap: onTap,
-      child: SizedBox.square(
-        dimension: 60,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            SizedBox.expand(
-              child: CircularProgressIndicator(
-                value: progress,
-                strokeWidth: selected ? 6 : 4,
-                backgroundColor: Colors.black12,
-                color: selected ? Colors.black87 : Colors.black38,
-              ),
-            ),
-            Container(
-              width: 44,
-              height: 44,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.black12),
-              ),
-              child: progress >= 1
-                  ? Icon(Icons.check, color: foreground)
-                  : Text(
-                      '$number',
-                      style: TextStyle(
-                        color: foreground,
-                        fontWeight: FontWeight.w700,
+      child: AnimatedScale(
+        scale: selected ? 1.1 : 1,
+        duration: _duration,
+        curve: _curve,
+        child: SizedBox.square(
+          dimension: ColorPalette._item,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox.expand(
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(end: progress),
+                  duration: _duration,
+                  curve: _curve,
+                  builder: (context, progress, _) =>
+                      TweenAnimationBuilder<double>(
+                        tween: Tween(end: selected ? 1.0 : 0.0),
+                        duration: _duration,
+                        curve: _curve,
+                        builder: (context, picked, _) =>
+                            CircularProgressIndicator(
+                              value: progress,
+                              strokeWidth: lerpDouble(4, 6, picked)!,
+                              backgroundColor: Colors.black12,
+                              color: Color.lerp(
+                                Colors.black38,
+                                Colors.black87,
+                                picked,
+                              ),
+                            ),
                       ),
-                    ),
-            ),
-          ],
+                ),
+              ),
+              Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.black12),
+                ),
+                child: AnimatedSwitcher(
+                  duration: _duration,
+                  switchInCurve: _curve,
+                  switchOutCurve: _curve,
+                  transitionBuilder: (child, animation) => ScaleTransition(
+                    scale: animation,
+                    child: FadeTransition(opacity: animation, child: child),
+                  ),
+                  child: progress >= 1
+                      ? Icon(
+                          Icons.check,
+                          key: const ValueKey('done'),
+                          color: foreground,
+                        )
+                      : Text(
+                          '$number',
+                          key: const ValueKey('number'),
+                          style: TextStyle(
+                            color: foreground,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
