@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:happy_color/core/widgets/picture_sliver_grid.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,7 +12,7 @@ import 'package:happy_color/features/library/presentation/widgets/category_pictu
 ///
 /// The artwork scrolls away under a bar that keeps the back button and shows
 /// the collection title once the artwork is gone.
-class CollectionPage extends ConsumerStatefulWidget {
+class CollectionPage extends ConsumerWidget {
   const CollectionPage({super.key, required this.categoryId});
 
   final String categoryId;
@@ -21,23 +20,13 @@ class CollectionPage extends ConsumerStatefulWidget {
   /// Width to height of the banner artwork.
   static const _bannerRatio = 1.9;
 
-  @override
-  ConsumerState<CollectionPage> createState() => _CollectionPageState();
-}
-
-class _CollectionPageState extends ConsumerState<CollectionPage> {
-  /// True once the artwork has scrolled behind the bar.
-  final _collapsed = ValueNotifier(false);
+  /// The last stretch of the collapse, over which the back button loses its
+  /// white circle and the title comes in. Both follow the scroll itself: a
+  /// switch at one point flickers when the scroll hovers around it.
+  static const _handover = 48.0;
 
   @override
-  void dispose() {
-    _collapsed.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final categoryId = widget.categoryId;
+  Widget build(BuildContext context, WidgetRef ref) {
     final pictures = ref.watch(libraryPicturesProvider(categoryId)).value;
     final banner = ref
         .watch(libraryBannersProvider)
@@ -52,7 +41,7 @@ class _CollectionPageState extends ConsumerState<CollectionPage> {
             .firstOrNull
             ?.title ??
         '';
-    const ratio = CollectionPage._bannerRatio;
+    const ratio = _bannerRatio;
     return Scaffold(
       backgroundColor: AppColors.sheet,
       body: CustomScrollView(
@@ -64,15 +53,17 @@ class _CollectionPageState extends ConsumerState<CollectionPage> {
             expandedHeight: MediaQuery.sizeOf(context).width / ratio,
             backgroundColor: AppColors.background,
             surfaceTintColor: Colors.transparent,
-            leading: _BackButton(collapsed: _collapsed),
+            // The back button sits in the flexible space, where it can
+            // follow the collapse; the bar itself stays empty.
+            automaticallyImplyLeading: false,
             flexibleSpace: LayoutBuilder(
               builder: (context, constraints) {
                 final statusBar = MediaQuery.paddingOf(context).top;
-                final collapsed =
-                    constraints.maxHeight <= statusBar + kToolbarHeight + 1;
-                WidgetsBinding.instance.addPostFrameCallback(
-                  (_) => _collapsed.value = collapsed,
-                );
+                // 1 while the artwork is behind the bar, 0 once it is gone.
+                final artwork =
+                    ((constraints.maxHeight - statusBar - kToolbarHeight) /
+                            _handover)
+                        .clamp(0.0, 1.0);
                 return Stack(
                   fit: StackFit.expand,
                   children: [
@@ -97,20 +88,29 @@ class _CollectionPageState extends ConsumerState<CollectionPage> {
                       right: 0,
                       height: kToolbarHeight,
                       child: IgnorePointer(
-                        child: AnimatedOpacity(
-                          duration: const Duration(milliseconds: 150),
-                          opacity: collapsed ? 1 : 0,
-                          child: Center(
-                            child: Text(
-                              title,
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.ink,
+                        child: Center(
+                          child: Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.ink.withValues(
+                                alpha: 1 - artwork,
                               ),
                             ),
                           ),
                         ),
+                      ),
+                    ),
+                    // Over the artwork the arrow sits in a white circle; over
+                    // the bar the plain arrow reads better.
+                    Positioned(
+                      top: statusBar + (kToolbarHeight - 44) / 2,
+                      left: 6,
+                      child: CircleIconButton.back(
+                        context,
+                        background: Colors.white.withValues(alpha: artwork),
+                        elevation: 2 * artwork,
                       ),
                     ),
                   ],
@@ -136,24 +136,4 @@ class _CollectionPageState extends ConsumerState<CollectionPage> {
           alignment: Alignment.topCenter,
           cacheWidth: BannerCard.cacheWidth(context),
         );
-}
-
-/// Sits in a white circle over the artwork and loses it once the bar takes
-/// over, where the plain arrow reads better.
-class _BackButton extends StatelessWidget {
-  const _BackButton({required this.collapsed});
-
-  final ValueListenable<bool> collapsed;
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: ValueListenableBuilder(
-      valueListenable: collapsed,
-      builder: (context, collapsed, _) => CircleIconButton.back(
-        context,
-        background: collapsed ? Colors.transparent : Colors.white,
-        elevation: collapsed ? 0 : 2,
-      ),
-    ),
-  );
 }

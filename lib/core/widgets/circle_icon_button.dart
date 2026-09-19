@@ -38,8 +38,7 @@ class CircleIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+    return DecoratedBox(
       decoration: ShapeDecoration(
         shape: const CircleBorder(),
         color: background,

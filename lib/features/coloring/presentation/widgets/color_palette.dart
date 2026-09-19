@@ -106,10 +106,14 @@ class _ColorPaletteState extends State<ColorPalette> {
   }
 }
 
-/// Room under the colors, so they never touch the edge of the screen even
-/// where the system leaves no inset.
-double _bottomInset(BuildContext context) =>
-    MediaQuery.viewPaddingOf(context).bottom.clamp(8.0, 34.0) + 8;
+/// Room under the colors. A gesture bar's inset is capped, and where the
+/// system leaves none the colors still keep off the edge of the screen; a
+/// navigation bar with buttons is taller than that cap and needs all of its
+/// inset, or the colors end up right against the buttons.
+double _bottomInset(BuildContext context) {
+  final inset = MediaQuery.viewPaddingOf(context).bottom;
+  return (inset > 36 ? inset : inset.clamp(8.0, 34.0)) + 8;
+}
 
 /// A color in the palette. Its ring grows with every fill, it rises when
 /// picked, and its number turns into a check once the color is done.
