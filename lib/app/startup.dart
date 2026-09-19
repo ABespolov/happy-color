@@ -79,8 +79,14 @@ class Startup {
     ]);
   }
 
-  /// The first cards of the library.
+  /// The first cards of the library, and the lists of every category: a
+  /// category whose list is not there yet would show a spinner in place of
+  /// the grid for a frame, and the cards would not cross-fade.
   Future<void> _libraryCards(BuildContext context) async {
+    final categories = await ref.read(libraryCategoriesProvider.future);
+    for (final category in categories) {
+      ref.read(libraryPicturesProvider(category.id).future).ignore();
+    }
     final pictures = await ref.read(libraryPicturesProvider('all').future);
     final progress = await ref.read(progressProvider.future);
     if (!context.mounted) return;

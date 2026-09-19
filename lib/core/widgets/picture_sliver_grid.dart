@@ -31,10 +31,10 @@ class PictureSliverGrid extends StatelessWidget {
           crossAxisSpacing: 16,
         ),
         itemCount: pictures.length,
-        // Keyed by picture: without it a card would keep the state, and for a
-        // moment the preview, of whatever picture was at that index before.
+        // Cells are kept by position on purpose: when the list changes, as
+        // on a category switch, every cell stays where it is and cross-fades
+        // from the picture it showed to the one it shows now.
         itemBuilder: (context, index) => PictureTile(
-          key: ValueKey(pictures[index].id),
           id: pictures[index].id,
           assetDir: pictures[index].assetDir,
         ),

@@ -26,9 +26,6 @@ class FeedSectionContent extends ConsumerWidget {
               child: _emptyState(context, AppLocalizations.of(context)!),
             )
           : PictureSliverGrid(
-              // Keyed by section: a picture in two sections would otherwise
-              // keep its card, and come in without the others.
-              key: ValueKey(section),
               pictures: [
                 for (final picture in pictures)
                   (id: picture.id, assetDir: picture.assetDir),

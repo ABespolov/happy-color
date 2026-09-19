@@ -39,53 +39,58 @@ class PictureTile extends ConsumerWidget {
         },
         onLongPress: () =>
             ref.read(progressProvider.notifier).toggleStarred(id, assetDir),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(12),
-              // Every card comes in the same way when it is created, whether
-              // its picture is in a cache already or not. Cards are created
-              // well below the screen while scrolling, so there it plays
-              // out of sight.
-              child: Appear(
-                // A picture in progress shows the colors it has so far, a
-                // finished one all of them, an untouched one its lines.
-                child: switch (progress) {
-                  PictureProgress(isStarted: true, :final filled)
-                      when !completed =>
-                    ColoredPreview(
-                      assetDir: assetDir,
-                      filled: filled,
-                      size: 400,
+        // A new card eases in; one given another picture, as on a category
+        // switch, cross-fades to it.
+        child: Appear(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeOut,
+            child: Stack(
+              key: ValueKey(id),
+              fit: StackFit.expand,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  // A picture in progress shows the colors it has so far, a
+                  // finished one all of them, an untouched one its lines.
+                  child: switch (progress) {
+                    PictureProgress(isStarted: true, :final filled)
+                        when !completed =>
+                      ColoredPreview(
+                        assetDir: assetDir,
+                        filled: filled,
+                        size: 400,
+                      ),
+                    // The thumbnails keep a grid of cards from decoding
+                    // pictures many times the size of a cell.
+                    _ => Image.asset(
+                      '$assetDir/'
+                      '${completed ? 'artwork_thumb' : 'lines_thumb'}.webp',
+                      cacheWidth: pictureThumbnailWidth(context),
+                      gaplessPlayback: true,
+                      frameBuilder: fadeInFrame,
                     ),
-                  // The thumbnails keep a grid of cards from decoding
-                  // pictures many times the size of a cell.
-                  _ => Image.asset(
-                    '$assetDir/'
-                    '${completed ? 'artwork_thumb' : 'lines_thumb'}.webp',
-                    cacheWidth: pictureThumbnailWidth(context),
-                    gaplessPlayback: true,
-                    frameBuilder: fadeInFrame,
+                  },
+                ),
+                if (progress
+                    case PictureProgress(isStarted: true, :final fraction)
+                    when !completed)
+                  Positioned(
+                    left: 12,
+                    right: 12,
+                    bottom: 10,
+                    child: _ProgressBar(fraction: fraction),
                   ),
-                },
-              ),
+                if (progress?.starred ?? false)
+                  const Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Icon(Icons.star_rounded, color: Color(0xFFFFC107)),
+                  ),
+              ],
             ),
-            if (progress case PictureProgress(isStarted: true, :final fraction)
-                when !completed)
-              Positioned(
-                left: 12,
-                right: 12,
-                bottom: 10,
-                child: _ProgressBar(fraction: fraction),
-              ),
-            if (progress?.starred ?? false)
-              const Positioned(
-                top: 8,
-                right: 8,
-                child: Icon(Icons.star_rounded, color: Color(0xFFFFC107)),
-              ),
-          ],
+          ),
         ),
       ),
     );
