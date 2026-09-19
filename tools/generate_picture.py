@@ -10,6 +10,7 @@ Writes to OUT_DIR:
 - picture.json: palette, and for each region its color, label spot and bounds;
 - regions.png: region map, pixel RGB = region index + 1 (R low byte, G high);
 - artwork.webp: the colored picture (lossy, quality 95);
+- artwork_thumb.webp, lines_thumb.webp: small copies for the picture grids;
 - lines.webp: the line art as black lines on a transparent background (lossless);
 - preview.png: region borders with color numbers, for checking.
 """
@@ -184,6 +185,17 @@ def region_map(regions):
     return image
 
 
+THUMB = 512  # Enough for a grid cell on a dense screen.
+
+
+def write_thumbnails(out, artwork, lines):
+    """Small copies of the artwork and the line art, so a grid of cards does
+    not decode the full-size pictures."""
+    small = lambda image: cv2.resize(image, (THUMB, THUMB), interpolation=cv2.INTER_AREA)
+    cv2.imwrite(str(out / "artwork_thumb.webp"), small(artwork), [cv2.IMWRITE_WEBP_QUALITY, 90])
+    cv2.imwrite(str(out / "lines_thumb.webp"), small(lines), [cv2.IMWRITE_WEBP_QUALITY, 101])
+
+
 def preview(regions, region_list, palette, path):
     image = np.full((SIZE, SIZE, 3), 255, np.uint8)
     edge = np.zeros((SIZE, SIZE), bool)
@@ -241,6 +253,7 @@ def main():
     lines_rgba = np.zeros((*ink.shape, 4), np.uint8)
     lines_rgba[..., 3] = ink  # Black lines on a transparent background.
     cv2.imwrite(str(out / "lines.webp"), lines_rgba, [cv2.IMWRITE_WEBP_QUALITY, 101])  # >100 = lossless
+    write_thumbnails(out, artwork=cv2.imread(args.color), lines=lines_rgba)
     preview(regions, region_list, palette, out / "preview.png")
     print(f"{len(region_list)} regions, {len(palette)} colors -> {out}")
 

@@ -8,6 +8,15 @@ import 'package:happy_color/features/progress/domain/entities/picture_progress.d
 import 'package:happy_color/features/progress/presentation/providers/progress_providers.dart';
 import 'package:happy_color/features/progress/presentation/widgets/picture_actions_sheet.dart';
 
+/// Decodes a card picture no larger than the cell it is shown in.
+int _thumbnailWidth(BuildContext context) {
+  final cell = MediaQuery.sizeOf(context).width / 2;
+  return (cell * MediaQuery.devicePixelRatioOf(context)).round().clamp(
+    200,
+    512,
+  );
+}
+
 /// A picture in a grid: opens it for coloring, stars it on a long press and
 /// shows how far it is colored.
 class PictureTile extends ConsumerWidget {
@@ -44,8 +53,12 @@ class PictureTile extends ConsumerWidget {
                 PictureProgress(isStarted: true, :final filled)
                     when !completed =>
                   ColoredPreview(assetDir: assetDir, filled: filled, size: 400),
+                // The thumbnails keep a grid of cards from decoding pictures
+                // many times the size of a cell.
                 _ => Image.asset(
-                  '$assetDir/${completed ? 'artwork.webp' : 'lines.webp'}',
+                  '$assetDir/'
+                  '${completed ? 'artwork_thumb' : 'lines_thumb'}.webp',
+                  cacheWidth: _thumbnailWidth(context),
                 ),
               },
             ),
