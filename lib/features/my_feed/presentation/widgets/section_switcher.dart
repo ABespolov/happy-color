@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
 import 'package:happy_color/features/my_feed/domain/entities/feed_section.dart';
 import 'package:happy_color/features/my_feed/presentation/widgets/feed_section_ui.dart';
@@ -57,7 +56,7 @@ class SectionSwitcher extends StatelessWidget {
                     child: Center(
                       child: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 200),
-                        child: SvgPicture.asset(
+                        child: Image.asset(
                           section.iconAsset(active: section == selected),
                           key: ValueKey((section, section == selected)),
                           width: 32,

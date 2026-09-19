@@ -15,6 +15,6 @@ extension FeedSectionUi on FeedSection {
       FeedSection.completed => 'check',
       FeedSection.starred => 'star',
     };
-    return 'assets/icons/feed/${name}_${active ? 'active' : 'inactive'}.svg';
+    return 'assets/icons/feed/${name}_${active ? 'active' : 'inactive'}.png';
   }
 }

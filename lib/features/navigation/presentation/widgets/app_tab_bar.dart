@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
 import 'package:happy_color/features/navigation/domain/entities/app_tab.dart';
 import 'package:happy_color/features/navigation/presentation/widgets/tab_bar_item.dart';
-import 'package:happy_color/features/navigation/presentation/widgets/tab_icons/library_tab_icon.dart';
-import 'package:happy_color/features/navigation/presentation/widgets/tab_icons/more_tab_icon.dart';
-import 'package:happy_color/features/navigation/presentation/widgets/tab_icons/my_feed_tab_icon.dart';
 import 'package:happy_color/l10n/app_localizations.dart';
 
 /// White rounded bottom bar with animated tab icons.
@@ -80,9 +77,9 @@ class AppTabBar extends StatelessWidget {
     AppTab.more => l10n.moreTab,
   };
 
-  static TabIconBuilder _iconOf(AppTab tab) => switch (tab) {
-    AppTab.myFeed => (progress) => MyFeedTabIcon(progress: progress),
-    AppTab.library => (progress) => LibraryTabIcon(progress: progress),
-    AppTab.more => (progress) => MoreTabIcon(progress: progress),
+  static String _iconOf(AppTab tab) => switch (tab) {
+    AppTab.myFeed => 'assets/icons/tabs/my_feed.png',
+    AppTab.library => 'assets/icons/tabs/library.png',
+    AppTab.more => 'assets/icons/tabs/more.png',
   };
 }

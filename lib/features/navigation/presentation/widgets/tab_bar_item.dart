@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
-
-typedef TabIconBuilder = Widget Function(Animation<double> progress);
+import 'package:happy_color/features/navigation/presentation/widgets/tab_icon.dart';
 
 /// A tab with an icon that plays its animation on every tap.
 class TabBarItem extends StatefulWidget {
@@ -13,7 +12,8 @@ class TabBarItem extends StatefulWidget {
     required this.onTap,
   });
 
-  final TabIconBuilder icon;
+  /// Image of the icon.
+  final String icon;
   final String label;
   final bool selected;
   final VoidCallback onTap;
@@ -26,7 +26,7 @@ class _TabBarItemState extends State<TabBarItem>
     with SingleTickerProviderStateMixin {
   late final _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 900),
+    duration: const Duration(milliseconds: 600),
   );
 
   @override
@@ -46,7 +46,14 @@ class _TabBarItemState extends State<TabBarItem>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox.square(dimension: 38, child: widget.icon(_controller)),
+          SizedBox.square(
+            dimension: 38,
+            child: TabIcon(
+              asset: widget.icon,
+              progress: _controller,
+              selected: widget.selected,
+            ),
+          ),
           const SizedBox(height: 1),
           AnimatedDefaultTextStyle(
             duration: const Duration(milliseconds: 200),

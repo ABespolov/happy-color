@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
 import 'package:happy_color/core/widgets/primary_button.dart';
 
@@ -26,8 +25,8 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SvgPicture.asset(
-              'assets/illustrations/$illustration.svg',
+            Image.asset(
+              'assets/illustrations/$illustration.png',
               width: 180,
               height: 180,
             ),
