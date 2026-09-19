@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/features/progress/presentation/providers/progress_providers.dart';
 
 import 'package:happy_color/features/coloring/domain/entities/coloring_picture.dart';
+import 'package:happy_color/features/coloring/presentation/widgets/color_palette.dart';
+import 'package:happy_color/features/coloring/presentation/widgets/colored_preview.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/coloring_view.dart';
 import 'package:happy_color/l10n/app_localizations.dart';
 
@@ -104,21 +106,59 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
               ),
             );
           }
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final scene = snapshot.requireData;
-          _regionCount = scene.picture.regions.length;
-          return ColoringView(
-            picture: scene.picture,
-            shader: scene.shader,
-            regionMap: scene.regionMap,
-            artwork: scene.artwork,
-            lines: scene.lines,
-            filled: _filled,
-            onFilledChanged: _saveFilled,
+          final scene = snapshot.data;
+          if (scene != null) _regionCount = scene.picture.regions.length;
+          // The picture is already on screen as a preview while the shader and
+          // the textures load, so there is nothing to wait in front of.
+          return AnimatedSwitcher(
+            duration: const Duration(milliseconds: 350),
+            child: scene == null
+                ? _Loading(assetDir: widget.assetDir, filled: _filled)
+                : ColoringView(
+                    picture: scene.picture,
+                    shader: scene.shader,
+                    regionMap: scene.regionMap,
+                    artwork: scene.artwork,
+                    lines: scene.lines,
+                    filled: _filled,
+                    onFilledChanged: _saveFilled,
+                  ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// The picture as it was left, shown while the coloring scene loads.
+class _Loading extends StatelessWidget {
+  const _Loading({required this.assetDir, required this.filled});
+
+  final String assetDir;
+  final Set<int> filled;
+
+  @override
+  Widget build(BuildContext context) {
+    // The same layout the coloring view has, so the picture does not jump
+    // when the preview gives way to it.
+    return SafeArea(
+      bottom: false,
+      child: Column(
+        children: [
+          Expanded(
+            child: Center(
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: ColoredPreview(
+                  assetDir: assetDir,
+                  filled: filled,
+                  size: ColoredPreview.thumbnailSize,
+                ),
+              ),
+            ),
+          ),
+          SizedBox(height: ColorPalette.heightOf(context)),
+        ],
       ),
     );
   }

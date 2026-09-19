@@ -53,6 +53,12 @@ class _ColoringViewState extends State<ColoringView>
   final _transform = TransformationController();
   late final _labels = LabelAtlas(widget.picture.palette.length);
 
+  /// Slides the palette in once the picture is ready.
+  late final _entrance = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 450),
+  )..forward();
+
   late final _fit = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 300),
@@ -86,6 +92,7 @@ class _ColoringViewState extends State<ColoringView>
     _transform.dispose();
     _labels.dispose();
     _fit.dispose();
+    _entrance.dispose();
     super.dispose();
   }
 
@@ -184,7 +191,16 @@ class _ColoringViewState extends State<ColoringView>
               ],
             ),
           ),
-          ColorPalette(controller: _controller),
+          SlideTransition(
+            position: Tween(begin: const Offset(0, 1), end: Offset.zero)
+                .animate(
+                  CurvedAnimation(
+                    parent: _entrance,
+                    curve: Curves.easeOutCubic,
+                  ),
+                ),
+            child: ColorPalette(controller: _controller),
+          ),
         ],
       ),
     );

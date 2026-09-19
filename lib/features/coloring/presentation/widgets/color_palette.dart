@@ -7,13 +7,19 @@ class ColorPalette extends StatelessWidget {
 
   final ColoringController controller;
 
+  static const _height = 84.0;
+
+  /// Height of the palette with the room it keeps under the colors.
+  static double heightOf(BuildContext context) =>
+      _height + _bottomInset(context);
+
   @override
   Widget build(BuildContext context) {
     final palette = controller.picture.palette;
     return Material(
       elevation: 8,
       child: SizedBox(
-        height: 84 + _bottomInset(context),
+        height: heightOf(context),
         child: ListenableBuilder(
           listenable: Listenable.merge([controller.selectedColor, controller]),
           builder: (context, _) => ListView.separated(
