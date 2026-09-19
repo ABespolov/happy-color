@@ -13,12 +13,17 @@ class ColorPalette extends StatelessWidget {
     return Material(
       elevation: 8,
       child: SizedBox(
-        height: 88,
+        height: 84 + MediaQuery.paddingOf(context).bottom,
         child: ListenableBuilder(
           listenable: Listenable.merge([controller.selectedColor, controller]),
           builder: (context, _) => ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              12,
+              16,
+              12 + MediaQuery.paddingOf(context).bottom,
+            ),
             itemCount: palette.length,
             separatorBuilder: (_, _) => const SizedBox(width: 12),
             itemBuilder: (context, i) {

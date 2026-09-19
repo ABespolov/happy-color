@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/features/my_feed/domain/entities/feed_section.dart';
 import 'package:happy_color/features/my_feed/presentation/providers/feed_providers.dart';
 import 'package:happy_color/features/my_feed/presentation/widgets/empty_state.dart';
-import 'package:happy_color/features/my_feed/presentation/widgets/picture_grid.dart';
+import 'package:happy_color/core/widgets/async_sliver.dart';
+import 'package:happy_color/core/widgets/picture_sliver_grid.dart';
 import 'package:go_router/go_router.dart';
 import 'package:happy_color/app/router.dart';
 import 'package:happy_color/l10n/app_localizations.dart';
@@ -16,25 +17,22 @@ class FeedSectionContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pictures = ref.watch(feedPicturesProvider(section));
-    return switch (pictures) {
-      AsyncData(:final value) when value.isNotEmpty => PictureGrid(
-        pictures: value,
-      ),
-      AsyncData() => SliverFillRemaining(
-        hasScrollBody: false,
-        child: _emptyState(context, AppLocalizations.of(context)!),
-      ),
-      AsyncError(:final error) => SliverToBoxAdapter(
-        child: Center(
-          child: Text(AppLocalizations.of(context)!.loadingFailed('$error')),
-        ),
-      ),
-      _ => const SliverFillRemaining(
-        hasScrollBody: false,
-        child: Center(child: CircularProgressIndicator()),
-      ),
-    };
+    return AsyncSliver(
+      value: ref.watch(feedPicturesProvider(section)),
+      fillRemaining: true,
+      builder: (pictures) => pictures.isEmpty
+          ? SliverFillRemaining(
+              hasScrollBody: false,
+              child: _emptyState(context, AppLocalizations.of(context)!),
+            )
+          : PictureSliverGrid(
+              pictures: [
+                for (final picture in pictures)
+                  (id: picture.id, assetDir: picture.assetDir),
+              ],
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+            ),
+    );
   }
 
   void _openLibrary(BuildContext context) => context.go(Routes.library);

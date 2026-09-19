@@ -2,9 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
+import 'package:happy_color/core/widgets/circle_icon_button.dart';
 import 'package:happy_color/features/library/presentation/providers/library_providers.dart';
 import 'package:happy_color/features/library/presentation/widgets/collection_counter.dart';
-import 'package:happy_color/features/library/presentation/widgets/library_picture_grid.dart';
+import 'package:happy_color/features/library/presentation/widgets/category_pictures.dart';
 
 /// Everything behind one banner: its artwork and the pictures of its category.
 ///
@@ -115,7 +116,7 @@ class _CollectionPageState extends ConsumerState<CollectionPage> {
             ),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
-          LibraryPictureGrid(categoryId: categoryId),
+          CategoryPictures(categoryId: categoryId),
           SliverToBoxAdapter(
             child: SizedBox(height: MediaQuery.paddingOf(context).bottom + 16),
           ),
@@ -137,35 +138,14 @@ class _BackButton extends StatelessWidget {
   final ValueListenable<bool> collapsed;
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: ValueListenableBuilder(
-        valueListenable: collapsed,
-        builder: (context, collapsed, child) => AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          decoration: ShapeDecoration(
-            shape: const CircleBorder(),
-            color: collapsed ? Colors.transparent : Colors.white,
-          ),
-          child: child,
-        ),
-        child: Material(
-          color: Colors.transparent,
-          shape: const CircleBorder(),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: Navigator.of(context).pop,
-            child: const SizedBox.square(
-              dimension: 36,
-              child: Icon(
-                Icons.arrow_back_ios_new,
-                size: 16,
-                color: AppColors.ink,
-              ),
-            ),
-          ),
-        ),
+  Widget build(BuildContext context) => Center(
+    child: ValueListenableBuilder(
+      valueListenable: collapsed,
+      builder: (context, collapsed, _) => CircleIconButton.back(
+        context,
+        background: collapsed ? Colors.transparent : Colors.white,
+        elevation: collapsed ? 0 : 2,
       ),
-    );
-  }
+    ),
+  );
 }

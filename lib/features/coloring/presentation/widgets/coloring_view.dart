@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:happy_color/core/theme/app_colors.dart';
+import 'package:happy_color/core/widgets/circle_icon_button.dart';
 
 import 'package:happy_color/features/coloring/presentation/widgets/color_palette.dart';
 import 'package:happy_color/features/coloring/presentation/controllers/coloring_controller.dart';
@@ -9,7 +11,6 @@ import 'package:happy_color/features/coloring/domain/entities/coloring_picture.d
 import 'package:happy_color/features/coloring/presentation/painters/coloring_canvas_painter.dart';
 import 'package:happy_color/features/coloring/presentation/painters/labels_painter.dart';
 import 'package:happy_color/features/coloring/presentation/painters/line_art_painter.dart';
-import 'package:happy_color/l10n/app_localizations.dart';
 
 class ColoringView extends StatefulWidget {
   const ColoringView({
@@ -34,12 +35,15 @@ class ColoringView extends StatefulWidget {
 
   final void Function(Set<int> filled) onFilledChanged;
 
+  /// Fills the room around the picture, and the page behind it.
+  static const canvasColor = Color(0xFFF2F2F2);
+
   @override
   State<ColoringView> createState() => _ColoringViewState();
 }
 
 class _ColoringViewState extends State<ColoringView>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final _controller = ColoringController(
     picture: widget.picture,
     vsync: this,
@@ -49,18 +53,48 @@ class _ColoringViewState extends State<ColoringView>
   final _transform = TransformationController();
   late final _labels = LabelAtlas(widget.picture.palette.length);
 
+  late final _fit = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 300),
+  );
+  Animation<Matrix4>? _fitAnimation;
+
+  /// True while the picture is zoomed in or moved off centre.
+  bool get _zoomed => _transform.value != Matrix4.identity();
+
+  /// Brings the whole picture back into view.
+  void _fitToScreen() {
+    _fitAnimation = Matrix4Tween(
+      begin: _transform.value,
+      end: Matrix4.identity(),
+    ).animate(CurvedAnimation(parent: _fit, curve: Curves.easeOutCubic));
+    _fit.forward(from: 0);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fit.addListener(() {
+      final animation = _fitAnimation;
+      if (animation != null) _transform.value = animation.value;
+    });
+  }
+
   @override
   void dispose() {
     _controller.dispose();
     _transform.dispose();
     _labels.dispose();
+    _fit.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final picture = widget.picture;
+    // The palette keeps its own room for the home indicator.
     return SafeArea(
+      bottom: false,
       child: Column(
         children: [
           Expanded(
@@ -83,7 +117,7 @@ class _ColoringViewState extends State<ColoringView>
                       viewport: viewport,
                     );
                     return ColoredBox(
-                      color: const Color(0xFFF2F2F2),
+                      color: ColoringView.canvasColor,
                       child: InteractiveViewer(
                         transformationController: _transform,
                         maxScale: 12,
@@ -126,11 +160,25 @@ class _ColoringViewState extends State<ColoringView>
                 ),
                 Positioned(
                   top: 12,
+                  left: 12,
+                  child: CircleIconButton.back(context),
+                ),
+                Positioned(
                   right: 12,
-                  child: FloatingActionButton.small(
-                    tooltip: AppLocalizations.of(context)!.fillAllTooltip,
-                    onPressed: _controller.fillAllOfSelectedColor,
-                    child: const Icon(Icons.format_color_fill),
+                  bottom: 12,
+                  child: ListenableBuilder(
+                    listenable: _transform,
+                    builder: (context, child) => AnimatedOpacity(
+                      duration: const Duration(milliseconds: 200),
+                      opacity: _zoomed ? 1 : 0,
+                      child: IgnorePointer(ignoring: !_zoomed, child: child),
+                    ),
+                    child: CircleIconButton(
+                      icon: Icons.zoom_in_map,
+                      iconSize: 24,
+                      iconColor: AppColors.primary,
+                      onTap: _fitToScreen,
+                    ),
                   ),
                 ),
               ],

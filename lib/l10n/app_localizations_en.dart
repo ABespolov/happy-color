@@ -19,6 +19,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get moreTab => 'More';
 
   @override
+  String get feedTitle => 'Happy coloring!';
+
+  @override
+  String get contactUs => 'Contact us';
+
+  @override
+  String get emailCopied => 'Email address copied';
+
+  @override
+  String appVersion(String version, String build) {
+    return 'Version $version ($build)';
+  }
+
+  @override
   String get inProgressSection => 'In Progress';
 
   @override
@@ -45,9 +59,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get colorAgain => 'Color again';
-
-  @override
-  String get fillAllTooltip => 'Open every region of the selected color';
 
   @override
   String loadingFailed(String error) {

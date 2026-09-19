@@ -112,6 +112,30 @@ abstract class AppLocalizations {
   /// **'More'**
   String get moreTab;
 
+  /// No description provided for @feedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Happy coloring!'**
+  String get feedTitle;
+
+  /// No description provided for @contactUs.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact us'**
+  String get contactUs;
+
+  /// No description provided for @emailCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Email address copied'**
+  String get emailCopied;
+
+  /// No description provided for @appVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version} ({build})'**
+  String appVersion(String version, String build);
+
   /// No description provided for @inProgressSection.
   ///
   /// In en, this message translates to:
@@ -165,12 +189,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Color again'**
   String get colorAgain;
-
-  /// No description provided for @fillAllTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Open every region of the selected color'**
-  String get fillAllTooltip;
 
   /// No description provided for @loadingFailed.
   ///

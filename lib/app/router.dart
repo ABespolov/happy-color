@@ -4,6 +4,7 @@ import 'package:happy_color/app/home_shell.dart';
 import 'package:happy_color/features/coloring/presentation/pages/coloring_page.dart';
 import 'package:happy_color/features/library/presentation/pages/collection_page.dart';
 import 'package:happy_color/features/library/presentation/pages/library_page.dart';
+import 'package:happy_color/features/more/presentation/pages/more_page.dart';
 import 'package:happy_color/features/my_feed/presentation/pages/my_feed_page.dart';
 import 'package:happy_color/features/navigation/domain/entities/app_tab.dart';
 import 'package:happy_color/features/navigation/presentation/widgets/tab_switcher.dart';
@@ -70,7 +71,7 @@ final router = GoRouter(
           routes: [
             GoRoute(
               path: Routes.more,
-              builder: (context, state) => const SizedBox.shrink(),
+              builder: (context, state) => const MorePage(),
             ),
           ],
         ),

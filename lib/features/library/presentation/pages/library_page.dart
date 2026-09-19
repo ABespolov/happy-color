@@ -5,7 +5,7 @@ import 'package:happy_color/core/widgets/sheet_sliver.dart';
 import 'package:happy_color/features/library/presentation/providers/library_providers.dart';
 import 'package:happy_color/features/library/presentation/widgets/banner_carousel.dart';
 import 'package:happy_color/features/library/presentation/widgets/category_tabs.dart';
-import 'package:happy_color/features/library/presentation/widgets/library_picture_grid.dart';
+import 'package:happy_color/features/library/presentation/widgets/category_pictures.dart';
 
 class LibraryPage extends ConsumerWidget {
   const LibraryPage({super.key});
@@ -42,7 +42,7 @@ class LibraryPage extends ConsumerWidget {
                 onSelected: ref.read(selectedCategoryProvider.notifier).select,
               ),
             ),
-            slivers: [LibraryPictureGrid(categoryId: selectedCategory)],
+            slivers: [CategoryPictures(categoryId: selectedCategory)],
           ),
         ],
       ),

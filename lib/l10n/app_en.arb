@@ -5,6 +5,17 @@
   "libraryTab": "Library",
   "moreTab": "More",
 
+  "feedTitle": "Happy coloring!",
+  "contactUs": "Contact us",
+  "emailCopied": "Email address copied",
+  "appVersion": "Version {version} ({build})",
+  "@appVersion": {
+    "placeholders": {
+      "version": { "type": "String" },
+      "build": { "type": "String" }
+    }
+  },
+
   "inProgressSection": "In Progress",
   "completedSection": "Completed",
   "starredSection": "Starred",
@@ -16,8 +27,6 @@
 
   "continueColoring": "Continue",
   "colorAgain": "Color again",
-
-  "fillAllTooltip": "Open every region of the selected color",
 
   "loadingFailed": "Could not load: {error}",
   "@loadingFailed": {

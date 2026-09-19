@@ -84,13 +84,6 @@ class ColoringController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void fillAllOfSelectedColor() {
-    final pending = picture.regionsByColor[selectedColor.value]
-        .where((id) => _state[id] == _empty)
-        .toList();
-    if (pending.isNotEmpty) _completeFills(pending);
-  }
-
   void _completeFills(List<int> ids) {
     for (final id in ids) {
       _state[id] = _filled;

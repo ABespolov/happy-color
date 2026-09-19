@@ -92,6 +92,7 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: ColoringView.canvasColor,
       body: FutureBuilder(
         future: _scene,
         builder: (context, snapshot) {
