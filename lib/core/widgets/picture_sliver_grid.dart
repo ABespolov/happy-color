@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:happy_color/core/widgets/picture_tile.dart';
 
 /// The two-column grid of pictures used by the feed, the library and a
@@ -14,6 +15,10 @@ class PictureSliverGrid extends StatelessWidget {
   final List<({String id, String assetDir})> pictures;
 
   final EdgeInsets padding;
+
+  /// How far beyond the screen a grid keeps its cards built, so the pictures
+  /// of the next rows are decoded before they scroll into view.
+  static const cacheExtent = ScrollCacheExtent.pixels(800);
 
   @override
   Widget build(BuildContext context) {

@@ -7,6 +7,7 @@ import 'dart:typed_data';
 /// is not.
 class PaintRequest {
   const PaintRequest({
+    required this.assetDir,
     required this.regions,
     required this.regionsWidth,
     required this.regionsHeight,
@@ -15,7 +16,13 @@ class PaintRequest {
     required this.size,
   });
 
-  final Uint8List regions;
+  /// The picture the region map belongs to.
+  final String assetDir;
+
+  /// The region map, sent only the first time this picture is painted: it is
+  /// megabytes long, and sending it copies it.
+  final Uint8List? regions;
+
   final int regionsWidth;
   final int regionsHeight;
   final Uint8List artwork;
@@ -30,13 +37,37 @@ class PaintRequest {
 class PreviewWorker {
   Future<SendPort>? _worker;
   final _pending = <int, Completer<Uint8List>>{};
+
+  /// Pictures whose region map the isolate already has.
+  final _sentRegions = <String>{};
   var _nextId = 0;
 
-  Future<Uint8List> paint(PaintRequest request) async {
+  /// Paints a preview. [regions] is only read the first time a picture is
+  /// painted; after that the isolate keeps its map.
+  Future<Uint8List> paint({
+    required String assetDir,
+    required Uint8List regions,
+    required int regionsWidth,
+    required int regionsHeight,
+    required Uint8List artwork,
+    required Set<int> filled,
+    required int size,
+  }) async {
     final worker = await (_worker ??= _spawn());
     final id = _nextId++;
     final done = _pending[id] = Completer<Uint8List>();
-    worker.send((id, request));
+    worker.send((
+      id,
+      PaintRequest(
+        assetDir: assetDir,
+        regions: _sentRegions.add(assetDir) ? regions : null,
+        regionsWidth: regionsWidth,
+        regionsHeight: regionsHeight,
+        artwork: artwork,
+        filled: filled,
+        size: size,
+      ),
+    ));
     return done.future;
   }
 
@@ -61,6 +92,7 @@ class PreviewWorker {
   void dispose() {
     _worker?.then((worker) => worker.send(null));
     _worker = null;
+    _sentRegions.clear();
     for (final pending in _pending.values) {
       pending.completeError(StateError('preview worker stopped'));
     }
@@ -69,6 +101,7 @@ class PreviewWorker {
 
   static void _run(SendPort replies) {
     final requests = ReceivePort();
+    final regions = <String, Uint8List>{};
     replies.send(requests.sendPort);
     requests.listen((message) {
       if (message == null) {
@@ -77,7 +110,12 @@ class PreviewWorker {
       }
       final (id, request) = message as (int, PaintRequest);
       try {
-        replies.send((id, paintPixels(request)));
+        final map = request.regions ?? regions[request.assetDir];
+        if (map == null) {
+          throw StateError('no region map for ${request.assetDir}');
+        }
+        regions[request.assetDir] = map;
+        replies.send((id, paintPixels(request, map)));
       } on Object catch (error) {
         replies.send((id, error));
       }
@@ -86,9 +124,8 @@ class PreviewWorker {
 }
 
 /// Colored regions take their pixels from the artwork, the rest stays white.
-Uint8List paintPixels(PaintRequest request) {
+Uint8List paintPixels(PaintRequest request, Uint8List regions) {
   final size = request.size;
-  final regions = request.regions;
   final pixels = Uint8List(size * size * 4);
   for (var y = 0; y < size; y++) {
     final row = (y * request.regionsHeight ~/ size) * request.regionsWidth;

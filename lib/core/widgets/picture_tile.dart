@@ -27,7 +27,11 @@ class PictureTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final progress = ref.watch(progressProvider).value?[id];
+    // Only this picture's progress, so coloring one does not rebuild the
+    // cards of all the others.
+    final progress = ref.watch(
+      progressProvider.select((progress) => progress.value?[id]),
+    );
     final completed = progress?.isCompleted ?? false;
     return Material(
       color: Colors.white,

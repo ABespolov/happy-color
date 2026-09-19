@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_color/core/widgets/picture_sliver_grid.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
 import 'package:happy_color/core/widgets/sheet_sliver.dart';
@@ -18,6 +19,7 @@ class MyFeedPage extends ConsumerWidget {
     return DecoratedBox(
       decoration: PageHeader.background,
       child: CustomScrollView(
+        scrollCacheExtent: PictureSliverGrid.cacheExtent,
         slivers: [
           SheetSliver(
             topHeight: PageHeader.heightOf(context),

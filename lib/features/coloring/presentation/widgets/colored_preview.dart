@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/preview_cache.dart';
-import 'package:happy_color/features/coloring/presentation/widgets/preview_worker.dart';
 
 /// Shows a picture the way the user left it: colored regions come from the
 /// artwork, the rest stays white, and the line art is drawn on top.
@@ -37,6 +36,12 @@ class ColoredPreview extends ConsumerStatefulWidget {
 
 class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
   late Future<ui.Image> _image = _fromCache();
+
+  /// The preview to paint right now: the one the cache already has, or the
+  /// one shown until a newer one finishes. Without it a card would go blank
+  /// for a moment every time what is colored changes.
+  ui.Image? _ready;
+
   Timer? _pending;
 
   @override
@@ -48,10 +53,13 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
       // A burst of taps while coloring would otherwise build a preview for
       // every one of them; the last state is the only one worth having.
       _pending?.cancel();
-      _pending = Timer(
-        const Duration(milliseconds: 150),
-        () => setState(() => _image = _fromCache()),
-      );
+      _pending = Timer(const Duration(milliseconds: 150), () {
+        setState(() => _image = _fromCache());
+        // Swap the old preview for the new one only once it is there.
+        _image.then((image) {
+          if (mounted) setState(() => _ready = image);
+        }).ignore();
+      });
     }
   }
 
@@ -62,15 +70,26 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
   }
 
   /// The cache owns the image, so this widget never disposes of it.
-  Future<ui.Image> _fromCache() => coloredPreview(
-    ref.read(previewCacheProvider),
-    assetDir: widget.assetDir,
-    size: widget.size,
-    filled: widget.filled,
-  );
+  Future<ui.Image> _fromCache() {
+    final cache = ref.read(previewCacheProvider);
+    final key = PreviewKey(
+      assetDir: widget.assetDir,
+      size: widget.size,
+      filled: widget.filled,
+    );
+    _ready = cache.ready(key) ?? _ready;
+    return coloredPreview(
+      cache,
+      assetDir: widget.assetDir,
+      size: widget.size,
+      filled: widget.filled,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final ready = _ready;
+    if (ready != null) return RawImage(image: ready, fit: BoxFit.contain);
     return FutureBuilder(
       future: _image,
       builder: (context, snapshot) => AnimatedSwitcher(
@@ -112,14 +131,13 @@ Future<ui.Image> _render(
   // Painting every pixel is the slow part, and it holds no engine objects,
   // so it happens away from the isolate that draws the frames.
   final pixels = await cache.worker.paint(
-    PaintRequest(
-      regions: regions.bytes,
-      regionsWidth: regions.width,
-      regionsHeight: regions.height,
-      artwork: artworkBytes,
-      filled: filled,
-      size: size,
-    ),
+    assetDir: assetDir,
+    regions: regions.bytes,
+    regionsWidth: regions.width,
+    regionsHeight: regions.height,
+    artwork: artworkBytes,
+    filled: filled,
+    size: size,
   );
   final painted = await _decodePixels(pixels, size);
 

@@ -63,7 +63,13 @@ class PreviewCache {
   final worker = PreviewWorker();
 
   final _entries = <PreviewKey, Future<ui.Image>>{};
+
+  /// The entries that have finished, so a card can paint them right away
+  /// instead of waiting a frame for its future.
+  final _ready = <PreviewKey, ui.Image>{};
   var _bytes = 0;
+
+  ui.Image? ready(PreviewKey key) => _ready[key];
 
   /// Decoded region maps, by picture folder. The map of a picture is the same
   /// whatever is colored in it, so it is worth keeping while its previews are
@@ -95,6 +101,14 @@ class PreviewCache {
     _entries[key] = image;
     _bytes += key.size * key.size * 4;
     unawaited(
+      image
+          .then<void>((rendered) {
+            // A preview dropped while it was rendering is not worth keeping.
+            if (_entries[key] == image) _ready[key] = rendered;
+          })
+          .catchError((Object _) {}),
+    );
+    unawaited(
       image.catchError((Object error) {
         _drop(key);
         throw error;
@@ -112,6 +126,7 @@ class PreviewCache {
 
   void _drop(PreviewKey key) {
     final image = _entries.remove(key);
+    _ready.remove(key);
     if (image == null) return;
     _bytes -= key.size * key.size * 4;
     // The widget that asked for it may still be painting it, so let the frame
@@ -127,6 +142,7 @@ class PreviewCache {
 
   void clear() {
     worker.dispose();
+    _ready.clear();
     _regionMaps.clear();
     for (final key in _entries.keys.toList()) {
       _drop(key);

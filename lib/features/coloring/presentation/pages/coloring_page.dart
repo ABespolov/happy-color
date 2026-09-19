@@ -8,6 +8,7 @@ import 'package:happy_color/features/progress/presentation/providers/progress_pr
 import 'package:happy_color/features/coloring/domain/entities/coloring_picture.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/color_palette.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/colored_preview.dart';
+import 'package:happy_color/features/coloring/presentation/widgets/preview_cache.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/coloring_view.dart';
 import 'package:happy_color/l10n/app_localizations.dart';
 
@@ -63,8 +64,24 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
     return decodeImageFromList(bytes.buffer.asUint8List());
   }
 
+  /// Builds the card-sized preview of what was just colored, so the grid the
+  /// user comes back to already has it.
+  void _warmCardPreview() {
+    final progress = ref
+        .read(progressProvider.notifier)
+        .of(widget.id, widget.assetDir);
+    if (!progress.isStarted) return;
+    coloredPreview(
+      ref.read(previewCacheProvider),
+      assetDir: widget.assetDir,
+      size: ColoredPreview.cardSize,
+      filled: progress.filled,
+    ).ignore();
+  }
+
   @override
   void dispose() {
+    _warmCardPreview();
     _scene.then((scene) {
       scene.shader.dispose();
       scene.regionMap.dispose();

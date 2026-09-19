@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:happy_color/core/widgets/picture_sliver_grid.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
 import 'package:happy_color/core/widgets/circle_icon_button.dart';
@@ -54,6 +55,7 @@ class _CollectionPageState extends ConsumerState<CollectionPage> {
     return Scaffold(
       backgroundColor: AppColors.sheet,
       body: CustomScrollView(
+        scrollCacheExtent: PictureSliverGrid.cacheExtent,
         slivers: [
           SliverAppBar(
             pinned: true,
