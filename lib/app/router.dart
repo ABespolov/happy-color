@@ -6,6 +6,7 @@ import 'package:happy_color/features/library/presentation/pages/collection_page.
 import 'package:happy_color/features/library/presentation/pages/library_page.dart';
 import 'package:happy_color/features/my_feed/presentation/pages/my_feed_page.dart';
 import 'package:happy_color/features/navigation/domain/entities/app_tab.dart';
+import 'package:happy_color/features/navigation/presentation/widgets/tab_switcher.dart';
 
 abstract final class Routes {
   static const myFeed = '/feed';
@@ -33,8 +34,10 @@ CupertinoPage<void> _slideIn(GoRouterState state, Widget child) =>
 final router = GoRouter(
   initialLocation: Routes.myFeed,
   routes: [
-    StatefulShellRoute.indexedStack(
+    StatefulShellRoute(
       builder: (context, state, shell) => HomeShell(shell: shell),
+      navigatorContainerBuilder: (context, shell, children) =>
+          TabSwitcher(index: shell.currentIndex, children: children),
       branches: [
         StatefulShellBranch(
           routes: [
