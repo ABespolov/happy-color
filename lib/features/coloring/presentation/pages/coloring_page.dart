@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:happy_color/core/widgets/route_settled.dart';
 import 'package:happy_color/features/progress/presentation/providers/progress_providers.dart';
 
 import 'package:happy_color/features/coloring/presentation/providers/coloring_scene.dart';
@@ -23,7 +24,8 @@ class ColoringPage extends ConsumerStatefulWidget {
   ConsumerState<ColoringPage> createState() => _ColoringPageState();
 }
 
-class _ColoringPageState extends ConsumerState<ColoringPage> {
+class _ColoringPageState extends ConsumerState<ColoringPage>
+    with SingleTickerProviderStateMixin {
   late final _scene = ref
       .read(coloringSceneLoaderProvider)
       .take(widget.assetDir);
@@ -35,6 +37,39 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
   void initState() {
     super.initState();
     _previews = ref.read(previewCacheProvider);
+  }
+
+  /// The scene, held back until the page has slid in: its first frame
+  /// stalls the raster thread, which is only unseen while nothing moves.
+  Future<ColoringScene>? _shownScene;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _shownScene ??= _sceneOnceSettled();
+  }
+
+  Future<ColoringScene> _sceneOnceSettled() async {
+    // Starts loading now, alongside the transition.
+    final scene = _scene;
+    await routeSettled(context);
+    return scene;
+  }
+
+  /// The preview over the view, faded out once the view is ready.
+  late final _cover = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 450),
+    value: 1,
+  );
+
+  Future<void> _reveal() async {
+    try {
+      await _cover.reverse().orCancel;
+    } on TickerCanceled {
+      return;
+    }
+    if (mounted) setState(() => _revealed = true);
   }
 
   /// What was colored at the last save.
@@ -58,6 +93,7 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
     if (_save != null) _flush();
     _warmCardPreview();
     unawaited(ColoringScene.disposeLoaded(_scene));
+    _cover.dispose();
     super.dispose();
   }
 
@@ -102,7 +138,7 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
     return Scaffold(
       backgroundColor: ColoringView.canvasColor,
       body: FutureBuilder(
-        future: _scene,
+        future: _shownScene,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(
@@ -114,24 +150,31 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
           }
           final scene = snapshot.data;
           if (scene != null) _regionCount = scene.picture.regions.length;
-          // The preview shows the picture while the scene loads; the view
-          // fades in over it after its first frame compiles the shader.
+          // The view is painted under the preview from the start, so its
+          // first frames stall behind a still picture.
           return Stack(
             fit: StackFit.expand,
             children: [
-              if (!_revealed)
-                _Loading(assetDir: widget.assetDir, filled: _filled),
               if (scene != null)
-                _Reveal(
-                  onRevealed: () => setState(() => _revealed = true),
-                  child: ColoringView(
-                    picture: scene.picture,
-                    shader: scene.shader,
-                    regionMap: scene.regionMap,
-                    artwork: scene.artwork,
-                    lines: scene.lines,
-                    filled: _filled,
-                    onFilledChanged: _saveFilled,
+                ColoringView(
+                  picture: scene.picture,
+                  shader: scene.shader,
+                  regionMap: scene.regionMap,
+                  artwork: scene.artwork,
+                  lines: scene.lines,
+                  filled: _filled,
+                  onFilledChanged: _saveFilled,
+                  onReady: _reveal,
+                ),
+              if (!_revealed)
+                FadeTransition(
+                  opacity: CurvedAnimation(
+                    parent: _cover,
+                    curve: Curves.easeIn,
+                  ),
+                  child: ColoredBox(
+                    color: ColoringView.canvasColor,
+                    child: _Loading(assetDir: widget.assetDir, filled: _filled),
                   ),
                 ),
             ],
@@ -142,50 +185,6 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
   }
 
   var _revealed = false;
-}
-
-/// Fades its child in, starting only after the child has drawn a frame: a
-/// fade that starts on the same frame as a shader compile would jump.
-class _Reveal extends StatefulWidget {
-  const _Reveal({required this.onRevealed, required this.child});
-
-  final VoidCallback onRevealed;
-  final Widget child;
-
-  @override
-  State<_Reveal> createState() => _RevealState();
-}
-
-class _RevealState extends State<_Reveal> with SingleTickerProviderStateMixin {
-  late final _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 450),
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await WidgetsBinding.instance.endOfFrame;
-      if (!mounted) return;
-      await _controller.forward();
-      if (mounted) widget.onRevealed();
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-      child: widget.child,
-    );
-  }
 }
 
 /// The picture as it was left, shown while the coloring scene loads.

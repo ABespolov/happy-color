@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:happy_color/app/router.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
+import 'package:happy_color/core/widgets/route_settled.dart';
 import 'package:happy_color/features/coloring/presentation/providers/coloring_scene.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/colored_preview.dart';
 import 'package:happy_color/features/progress/domain/entities/picture_progress.dart';
@@ -10,7 +13,7 @@ import 'package:happy_color/features/progress/presentation/providers/progress_pr
 import 'package:happy_color/l10n/app_localizations.dart';
 
 /// What to do with a picture that is already partly colored.
-class PictureActionsSheet extends ConsumerWidget {
+class PictureActionsSheet extends ConsumerStatefulWidget {
   const PictureActionsSheet({super.key, required this.progress});
 
   final PictureProgress progress;
@@ -29,10 +32,34 @@ class PictureActionsSheet extends ConsumerWidget {
       );
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PictureActionsSheet> createState() =>
+      _PictureActionsSheetState();
+}
+
+class _PictureActionsSheetState extends ConsumerState<PictureActionsSheet> {
+  PictureProgress get progress => widget.progress;
+
+  var _warming = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_warming) {
+      _warming = true;
+      unawaited(_warmScene());
+    }
+  }
+
+  /// Every action opens the picture. Its textures decode once the sheet is
+  /// up, not while it slides in.
+  Future<void> _warmScene() async {
+    await routeSettled(context);
+    if (mounted) ref.read(coloringSceneLoaderProvider).warm(progress.assetDir);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    // Every action opens the picture.
-    ref.read(coloringSceneLoaderProvider).warm(progress.assetDir);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),

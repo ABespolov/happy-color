@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/core/widgets/fade_in_frame.dart';
 import 'package:happy_color/core/widgets/picture_thumbnail.dart';
+import 'package:happy_color/core/widgets/route_settled.dart';
 import 'package:happy_color/features/coloring/presentation/rendering/preview_renderer.dart'
     as renderer;
 import 'package:happy_color/features/coloring/presentation/widgets/preview_cache.dart';
@@ -44,6 +45,9 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
 
   Timer? _pending;
 
+  /// Renders wait for a sheet or a page to finish coming in.
+  Future<void>? _routeSettled;
+
   /// Set while the card is out of sight (under the coloring page, in another
   /// tab) and its preview is out of date: it renders once it shows again
   /// instead of once per tap.
@@ -58,6 +62,7 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _routeSettled ??= routeSettled(context);
     if (_stale && TickerMode.valuesOf(context).enabled) {
       _stale = false;
       _request();
@@ -106,6 +111,7 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
   }
 
   Future<void> _render(int id, PreviewKey key) async {
+    await _routeSettled;
     final ui.Image image;
     try {
       image = await _cache.preview(key);

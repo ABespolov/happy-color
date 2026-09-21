@@ -24,6 +24,7 @@ class ColoringView extends StatefulWidget {
     required this.lines,
     required this.filled,
     required this.onFilledChanged,
+    required this.onReady,
   });
 
   final ColoringPicture picture;
@@ -35,6 +36,9 @@ class ColoringView extends StatefulWidget {
   final Set<int> filled;
 
   final void Function(Set<int> filled) onFilledChanged;
+
+  /// Called once the first frame is drawn and taps work.
+  final VoidCallback onReady;
 
   /// Fills the room around the picture, and the page behind it.
   static const canvasColor = Color(0xFFF2F2F2);
@@ -82,25 +86,26 @@ class _ColoringViewState extends State<ColoringView>
       final animation = _fitAnimation;
       if (animation != null) _transform.value = animation.value;
     });
-    unawaited(_readRegionMap());
+    unawaited(_prepare());
   }
 
-  /// Taps need the region map on the CPU. Reading it back from the GPU
-  /// stalls a frame, so it waits until the view has come in.
-  Future<void> _readRegionMap() async {
-    try {
-      await _entrance.forward().orCancel;
-    } on TickerCanceled {
-      return;
-    }
+  /// The first frame builds the shader's pipeline and the label atlas, and
+  /// taps need the region map read back from the GPU. All of it stalls the
+  /// raster thread, so it is done before anything moves.
+  Future<void> _prepare() async {
+    await WidgetsBinding.instance.endOfFrame;
     final map = widget.regionMap;
     final rgba = await map.toByteData();
-    if (!mounted || rgba == null) return;
-    _controller.regionMap = RegionMap(
-      rgba,
-      width: map.width,
-      height: map.height,
-    );
+    if (!mounted) return;
+    if (rgba != null) {
+      _controller.regionMap = RegionMap(
+        rgba,
+        width: map.width,
+        height: map.height,
+      );
+    }
+    widget.onReady();
+    unawaited(_entrance.forward());
   }
 
   @override

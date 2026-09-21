@@ -1,18 +1,20 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/services.dart';
-
-/// Decodes a bundled image, scaled to [size] by [size] if given.
+/// Decodes a bundled image, scaled to [size] by [size] if given. The engine
+/// reads the file itself, so its bytes never pass through the UI thread.
 Future<ui.Image> loadImage(String asset, {int? size}) async {
-  final data = await rootBundle.load(asset);
-  final codec = await ui.instantiateImageCodec(
-    data.buffer.asUint8List(),
+  final buffer = await ui.ImmutableBuffer.fromAsset(asset);
+  final descriptor = await ui.ImageDescriptor.encoded(buffer);
+  buffer.dispose();
+  final codec = await descriptor.instantiateCodec(
     targetWidth: size,
     targetHeight: size,
   );
   final frame = await codec.getNextFrame();
   codec.dispose();
+  descriptor.dispose();
   return frame.image;
 }
 
