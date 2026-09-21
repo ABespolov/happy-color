@@ -97,23 +97,36 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
     } on Object {
       return;
     }
+    if (!mounted || id != _requested) return;
+    // Decoded before it fades in, so the fade never starts on an empty frame.
+    await precacheImage(
+      ResizeImage(FileImage(file), width: _width(context)),
+      context,
+    );
     if (mounted && id == _requested) setState(() => _file = file);
   }
+
+  int _width(BuildContext context) =>
+      widget.cacheWidth ?? _screenWidth(context);
 
   @override
   Widget build(BuildContext context) {
     final file = _file;
     final card = pictureThumbnailWidth(context);
-    final width = widget.cacheWidth ?? _screenWidth(context);
-    // The colors fade in over the line art rather than an empty square.
+    final width = _width(context);
+    final current = ValueKey(file?.path ?? 'lines');
+    // A newer preview fades in over the one it replaces, which stays fully
+    // up underneath, as the colors do over the line art.
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 300),
       switchInCurve: Curves.easeOut,
-      switchOutCurve: Curves.easeOut,
+      transitionBuilder: (child, animation) => child.key == current
+          ? FadeTransition(opacity: animation, child: child)
+          : child,
       child: file == null
           ? Image.asset(
               '${widget.assetDir}/lines_thumb.webp',
-              key: const ValueKey('lines'),
+              key: current,
               cacheWidth: card,
               fit: BoxFit.contain,
               gaplessPlayback: true,
@@ -121,7 +134,7 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
             )
           : Image.file(
               file,
-              key: const ValueKey('preview'),
+              key: current,
               cacheWidth: width,
               fit: BoxFit.contain,
               gaplessPlayback: true,
