@@ -6,12 +6,17 @@ Regions are the closed areas between the lines of LINES.png. Each region gets
 the palette color closest to its dominant color in COLOR.png, which is also
 exported as the artwork revealed while coloring.
 
+A picture can be rebuilt from its own folder, which keeps its artwork as is:
+
+    python tools/generate_picture.py DIR/lines.webp DIR/artwork.webp DIR
+
 Writes to OUT_DIR:
 - picture.json: palette, and for each region its color, label spot and bounds;
 - regions.png: region map, pixel RGB = region index + 1 (R low byte, G high);
 - artwork.webp: the colored picture (lossy, quality 95);
 - artwork_thumb.webp, lines_thumb.webp: small copies for the picture grids;
-- lines.webp: the line art as black lines on a transparent background (lossless);
+- lines.webp: the line art as black lines on a transparent background
+  (lossless), with a line added along every border the art did not draw;
 - preview.png: region borders with color numbers, for checking.
 """
 
@@ -21,16 +26,41 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from sklearn.cluster import KMeans
 
 SIZE = 1000  # Picture coordinate space.
 
 
-def load(path, flags=cv2.IMREAD_COLOR):
+def read(path, flags=cv2.IMREAD_COLOR):
     image = cv2.imread(str(path), flags)
     if image is None:
         raise SystemExit(f"cannot read {path}")
+    return image
+
+
+def read_lines(path):
+    """Line art as dark ink on white. Also reads the transparent lines.webp
+    this tool writes, where the ink is the alpha channel."""
+    image = read(path, cv2.IMREAD_UNCHANGED)
+    if image.ndim == 3 and image.shape[2] == 4:
+        return 255 - image[..., 3]
+    return image if image.ndim == 2 else cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+
+def shrink(image):
     return cv2.resize(image, (SIZE, SIZE), interpolation=cv2.INTER_AREA)
+
+
+def grow(labels, inside):
+    """Spreads labels over the unlabelled (0) pixels of [inside]."""
+    grown = labels.astype(np.float32)
+    kernel = np.ones((3, 3), np.uint8)
+    while True:
+        empty = (grown == 0) & inside
+        dilated = cv2.dilate(grown, kernel)
+        fill = empty & (dilated > 0)
+        if not fill.any():
+            return grown.astype(np.int32)
+        grown[fill] = dilated[fill]
 
 
 def find_regions(lines, min_area, close_gaps):
@@ -50,14 +80,8 @@ def find_regions(lines, min_area, close_gaps):
     labels[wall] = 0
     labels[areas[labels] < min_area] = 0  # Specks become part of the lines.
 
-    grown = labels.astype(np.float32)
-    kernel = np.ones((3, 3), np.uint8)
-    while (grown == 0).any():
-        dilated = cv2.dilate(grown, kernel)
-        empty = grown == 0
-        grown[empty] = dilated[empty]
-    _, regions = np.unique(grown.astype(np.int32), return_inverse=True)
-    return regions.reshape(SIZE, SIZE), wall
+    _, regions = np.unique(grow(labels, np.ones_like(wall)), return_inverse=True)
+    return regions.reshape(SIZE, SIZE)
 
 
 def merge_small_regions(regions, min_area, min_width):
@@ -102,6 +126,100 @@ def merge_small_regions(regions, min_area, min_width):
         regions = regions.reshape(SIZE, SIZE)
 
 
+def two_colors(pixels):
+    """The two colors that describe [pixels] best."""
+    sample = pixels[:: max(1, len(pixels) // 20000)]
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 0.5)
+    cv2.setRNGSeed(0)
+    _, _, centers = cv2.kmeans(sample, 2, None, criteria, 3, cv2.KMEANS_PP_CENTERS)
+    return centers
+
+
+def cut(lab, mask, clean, min_part, min_contrast):
+    """Pieces to cut out of the region [mask], or none if it is one thing.
+
+    Sorts its pixels into two colors, and keeps the pieces of the rarer one
+    that are big and end in a sharp edge. A gradient or soft shading has no
+    such edge, and a texture falls apart into pieces that are too small."""
+    own = mask & clean
+    if own.sum() < 2 * min_part:
+        return []
+    centers = two_colors(lab[own])
+    if np.linalg.norm(centers[0] - centers[1]) < min_contrast:
+        return []
+
+    # Each pixel sides with most of its neighbourhood, for a smooth cut.
+    second = np.linalg.norm(lab - centers[1], axis=2) < np.linalg.norm(lab - centers[0], axis=2)
+    known = own.astype(np.float32)
+    share = cv2.GaussianBlur(second * known, (0, 0), 2.5) / np.maximum(cv2.GaussianBlur(known, (0, 0), 2.5), 1e-6)
+    sides = grow(np.where(own, 1 + (share > 0.5), 0), mask)
+    rare = 1 + ((sides == 2).sum() < (sides == 1).sum())
+
+    count, pieces, stats, _ = cv2.connectedComponentsWithStats((sides == rare).astype(np.uint8), connectivity=4)
+    big = [k for k in range(1, count) if stats[k, cv2.CC_STAT_AREA] >= min_part]
+    if sum(stats[k, cv2.CC_STAT_AREA] for k in big) < 0.6 * (sides == rare).sum():
+        return []
+    near, far = np.ones((5, 5), np.uint8), np.ones((15, 15), np.uint8)
+    out = []
+    for k in big:
+        piece = (pieces == k).astype(np.uint8)
+        rest = (mask & (pieces != k)).astype(np.uint8)
+        small = min(piece.sum(), rest.sum())
+        seam = ((cv2.dilate(piece, np.ones((3, 3), np.uint8)) > 0) & (rest > 0)).sum()
+        # A short seam is a gap in a line that let two shapes run together. A
+        # long one is worth drawing only around something big: around a
+        # highlight or a petal it would be a scribble.
+        if small < min_part or seam > (5 if small >= 6 * min_part else 2.5) * np.sqrt(small):
+            continue
+        # Compare the colors a few px off the cut on both sides.
+        inner = (cv2.erode(piece, near) > 0) & (cv2.dilate(rest, far) > 0) & clean
+        outer = (cv2.erode(rest, near) > 0) & (cv2.dilate(piece, far) > 0) & clean
+        # Almost no paint along the cut means a line already runs there.
+        if min(inner.sum(), outer.sum()) < 20 or np.linalg.norm(
+                np.median(lab[inner], axis=0) - np.median(lab[outer], axis=0)) >= 0.7 * min_contrast:
+            out.append(piece > 0)
+    return out
+
+
+def split_mixed_regions(regions, lines, color, min_part, min_contrast=30, passes=3):
+    """AI line art leaves some shapes open, so one region can cover two things,
+    like a tree top and the sky behind it, and no single color fits it. Cuts
+    such regions along the color edge inside them."""
+    if min_part <= 0:
+        return regions
+    lab = to_lab(color)
+    clean = cv2.erode((lines > 215).astype(np.uint8), np.ones((5, 5), np.uint8)) > 0
+    regions = regions.copy()
+    count = regions.max() + 1
+    todo = range(count)
+    for _ in range(passes):
+        made = []
+        for r in todo:
+            ys, xs = np.nonzero(regions == r)
+            if len(ys) < 2 * min_part:
+                continue
+            y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+            window = regions[y0:y1, x0:x1]
+            mask = window == r
+            pieces = cut(lab[y0:y1, x0:x1], mask, clean[y0:y1, x0:x1], min_part, min_contrast)
+            if not pieces:
+                continue
+            for piece in pieces:
+                mask &= ~piece
+            # What is left may have been cut apart too.
+            islands, rest = cv2.connectedComponents(mask.astype(np.uint8), connectivity=4)
+            pieces += [rest == k for k in range(2, islands)]
+            for piece in pieces:
+                window[piece] = count
+                made.append(count)
+                count += 1
+            made.append(r)
+        if not made:
+            break
+        todo = made  # Only what changed can be cut again.
+    return regions
+
+
 def smooth_borders(regions, radius):
     """Rounds off jagged borders: every pixel goes to the region that covers
     most of its neighbourhood. Neighbours still share exact borders."""
@@ -122,14 +240,38 @@ def smooth_borders(regions, radius):
         win = score > window
         window[win] = score[win]
         out[y0:y1, x0:x1][win] = r
-    return out
+    _, out = np.unique(out, return_inverse=True)  # A sliver can be smoothed away.
+    return out.reshape(regions.shape)
 
 
-def region_colors(regions, wall, color):
-    """Median Lab color of each region, ignoring line pixels."""
-    lab = cv2.cvtColor(color, cv2.COLOR_BGR2LAB).reshape(-1, 3)
+def to_lab(bgr):
+    """True CIELAB, where plain distance is close to how different two colors
+    look. OpenCV's 8-bit Lab stretches lightness 2.55x against the color axes,
+    which groups regions by how light they are rather than by hue."""
+    return cv2.cvtColor(bgr.astype(np.float32) / 255, cv2.COLOR_BGR2LAB)
+
+
+def main_color(pixels, min_contrast=25):
+    """The median color, or the median of the larger part when the pixels fall
+    into two distinct colors: a fir under snow is green, not the olive that
+    lies between green and white."""
+    if len(pixels) >= 50:
+        centers = two_colors(pixels)
+        if np.linalg.norm(centers[0] - centers[1]) >= min_contrast:
+            second = np.linalg.norm(pixels - centers[1], axis=1) < np.linalg.norm(pixels - centers[0], axis=1)
+            pixels = pixels[second == (second.mean() > 0.5)]
+    return np.median(pixels, axis=0)
+
+
+def region_colors(regions, lines, color, margin=2):
+    """Main Lab color of each region, taken [margin] px away from any ink, so
+    the soft edges of the lines and paint that crossed them do not muddy it."""
+    lab = to_lab(color).reshape(-1, 3)
+    paper = lines > 215
+    size = 2 * margin + 1
+    inner = cv2.erode(paper.astype(np.uint8), np.ones((size, size), np.uint8)) > 0
+    paper, inner = paper.ravel(), inner.ravel()
     ids = regions.ravel()
-    inside = ~wall.ravel()
     count = regions.max() + 1
     medians = np.zeros((count, 3), np.float32)
     areas = np.bincount(ids, minlength=count)
@@ -137,21 +279,57 @@ def region_colors(regions, wall, color):
     starts = np.concatenate([[0], np.cumsum(areas)])
     for r in range(count):
         idx = order[starts[r]:starts[r + 1]]
-        own = idx[inside[idx]]
-        medians[r] = np.median(lab[own if len(own) else idx], axis=0)
+        own = idx[inner[idx]]
+        if len(own) < 30:  # Thin region: settle for anything that is not ink.
+            own = idx[paper[idx]]
+        medians[r] = main_color(lab[own if len(own) else idx])
     return medians, areas
 
 
-def build_palette(medians, areas, colors):
-    k = min(colors, len(medians))
-    km = KMeans(k, n_init=10, random_state=0).fit(medians, sample_weight=areas)
+def distances(colors, centers):
+    return np.linalg.norm(colors[:, None] - centers[None], axis=2)
+
+
+def build_palette(medians, areas, colors, max_error=10, min_gap=9):
+    """Picks at most [colors] palette colors and gives each region the closest.
+
+    Starts from the colors that differ most, so a small bright accent gets its
+    own number instead of dissolving into a big neighbour, and stops early once
+    every region is within [max_error] of a color. Colors closer than [min_gap]
+    look the same in the palette and are merged."""
+    centers = [medians[np.argmax(areas)]]
+    while len(centers) < min(colors, len(medians)):
+        error = distances(medians, np.array(centers)).min(axis=1)
+        if error.max() < max_error:
+            break
+        centers.append(medians[np.argmax(error)])
+    centers = np.array(centers)
+
+    # Square root: a big background should not outvote everything else.
+    weights = np.sqrt(areas)
+    for _ in range(20):
+        ids = distances(medians, centers).argmin(axis=1)
+        for k in range(len(centers)):
+            if (ids == k).any():
+                centers[k] = np.average(medians[ids == k], axis=0, weights=weights[ids == k])
+
+    while len(centers) > 1:
+        gaps = distances(centers, centers)
+        np.fill_diagonal(gaps, np.inf)
+        a, b = np.unravel_index(np.argmin(gaps), gaps.shape)
+        if gaps[a, b] >= min_gap:
+            break
+        ids = distances(medians, centers).argmin(axis=1)
+        both = (ids == a) | (ids == b)
+        if both.any():
+            centers[a] = np.average(medians[both], axis=0, weights=weights[both])
+        centers = np.delete(centers, b, axis=0)
+
     # Number colors from light to dark, like most color-by-number apps.
-    order = np.argsort(-km.cluster_centers_[:, 0])
-    rank = np.empty(k, int)
-    rank[order] = np.arange(k)
-    centers = km.cluster_centers_[order].astype(np.uint8).reshape(-1, 1, 3)
-    rgb = cv2.cvtColor(centers, cv2.COLOR_LAB2RGB).reshape(-1, 3)
-    return ["#%02X%02X%02X" % tuple(c) for c in rgb], rank[km.labels_]
+    centers = centers[np.argsort(-centers[:, 0])]
+    rgb = cv2.cvtColor(centers.reshape(-1, 1, 3), cv2.COLOR_LAB2RGB).reshape(-1, 3)
+    rgb = np.round(rgb * 255).clip(0, 255).astype(np.uint8)
+    return ["#%02X%02X%02X" % tuple(c) for c in rgb], distances(medians, centers).argmin(axis=1)
 
 
 def label_spot(mask):
@@ -185,15 +363,32 @@ def region_map(regions):
     return image
 
 
+def ink_new_borders(ink, regions, lines):
+    """Draws a thin line along every border that has none, so the regions cut
+    by split_mixed_regions are outlined like the rest. [ink] is full size."""
+    edge = np.zeros(regions.shape, np.uint8)
+    edge[:, :-1] |= regions[:, :-1] != regions[:, 1:]
+    edge[:-1, :] |= regions[:-1, :] != regions[1:, :]
+    drawn = cv2.dilate((lines < 140).astype(np.uint8), np.ones((7, 7), np.uint8))
+    edge &= 1 - drawn
+    # Stubs where smoothing pulled a border slightly off its line.
+    count, parts, stats, _ = cv2.connectedComponentsWithStats(edge, connectivity=8)
+    edge &= (stats[:, cv2.CC_STAT_AREA] >= 12)[parts].astype(np.uint8)
+    edge = cv2.dilate(edge, np.ones((2, 2), np.uint8))
+
+    height, width = ink.shape
+    line = cv2.resize(edge.astype(np.float32), (width, height), interpolation=cv2.INTER_CUBIC)
+    line = cv2.GaussianBlur(line, (0, 0), width / SIZE)
+    line = np.clip((line - 0.35) * 5, 0, 1) * 255
+    return np.maximum(ink, line.astype(np.uint8))
+
+
 THUMB = 512  # Enough for a grid cell on a dense screen.
 
 
-def write_thumbnails(out, artwork, lines):
-    """Small copies of the artwork and the line art, so a grid of cards does
-    not decode the full-size pictures."""
-    small = lambda image: cv2.resize(image, (THUMB, THUMB), interpolation=cv2.INTER_AREA)
-    cv2.imwrite(str(out / "artwork_thumb.webp"), small(artwork), [cv2.IMWRITE_WEBP_QUALITY, 90])
-    cv2.imwrite(str(out / "lines_thumb.webp"), small(lines), [cv2.IMWRITE_WEBP_QUALITY, 101])
+def thumbnail(image):
+    """A small copy, so a grid of cards does not decode the full-size picture."""
+    return cv2.resize(image, (THUMB, THUMB), interpolation=cv2.INTER_AREA)
 
 
 def preview(regions, region_list, palette, path):
@@ -219,7 +414,8 @@ def main():
     parser.add_argument("lines")
     parser.add_argument("color")
     parser.add_argument("out")
-    parser.add_argument("--colors", type=int, default=24)
+    parser.add_argument("--colors", type=int, default=24,
+                        help="at most this many colors; simple pictures get fewer")
     parser.add_argument("--min-region", type=int, default=150,
                         help="regions smaller than this many px merge into a neighbour")
     parser.add_argument("--min-width", type=float, default=7,
@@ -230,14 +426,18 @@ def main():
                         help="thicken lines by this many px to seal gaps in strokes")
     parser.add_argument("--min-area", type=int, default=40,
                         help="areas smaller than this (px on a 1000px canvas) merge into lines")
+    parser.add_argument("--min-split", type=int, default=400,
+                        help="a region of two colors is cut in two if both parts "
+                             "are at least this many px, 0 to disable")
     args = parser.parse_args()
 
-    lines = load(args.lines, cv2.IMREAD_GRAYSCALE)
-    color = load(args.color)
-    regions, wall = find_regions(lines, args.min_area, args.close_gaps)
+    full_lines, full_color = read_lines(args.lines), read(args.color)
+    lines, color = shrink(full_lines), shrink(full_color)
+    regions = find_regions(lines, args.min_area, args.close_gaps)
+    regions = split_mixed_regions(regions, lines, color, args.min_split)
     regions = smooth_borders(regions, args.smooth)
     regions = merge_small_regions(regions, args.min_region, args.min_width)
-    medians, areas = region_colors(regions, wall, color)
+    medians, areas = region_colors(regions, lines, color)
     palette, color_ids = build_palette(medians, areas, args.colors)
     region_list = export_regions(regions, color_ids)
 
@@ -248,12 +448,16 @@ def main():
     (out / "picture.json").write_text(json.dumps(picture, separators=(",", ":")))
     # Full source resolution keeps the artwork and lines sharp when zoomed.
     cv2.imwrite(str(out / "regions.png"), region_map(regions))
-    cv2.imwrite(str(out / "artwork.webp"), cv2.imread(args.color), [cv2.IMWRITE_WEBP_QUALITY, 95])
-    ink = 255 - cv2.imread(args.lines, cv2.IMREAD_GRAYSCALE)
-    lines_rgba = np.zeros((*ink.shape, 4), np.uint8)
-    lines_rgba[..., 3] = ink  # Black lines on a transparent background.
+    # Rebuilding a picture from its own folder: encoding the artwork again
+    # would only wear it down.
+    if Path(args.color).resolve() != (out / "artwork.webp").resolve():
+        cv2.imwrite(str(out / "artwork.webp"), full_color, [cv2.IMWRITE_WEBP_QUALITY, 95])
+        cv2.imwrite(str(out / "artwork_thumb.webp"), thumbnail(full_color), [cv2.IMWRITE_WEBP_QUALITY, 90])
+    lines_rgba = np.zeros((*full_lines.shape, 4), np.uint8)
+    # Black lines on a transparent background.
+    lines_rgba[..., 3] = ink_new_borders(255 - full_lines, regions, lines)
     cv2.imwrite(str(out / "lines.webp"), lines_rgba, [cv2.IMWRITE_WEBP_QUALITY, 101])  # >100 = lossless
-    write_thumbnails(out, artwork=cv2.imread(args.color), lines=lines_rgba)
+    cv2.imwrite(str(out / "lines_thumb.webp"), thumbnail(lines_rgba), [cv2.IMWRITE_WEBP_QUALITY, 101])
     preview(regions, region_list, palette, out / "preview.png")
     print(f"{len(region_list)} regions, {len(palette)} colors -> {out}")
 
