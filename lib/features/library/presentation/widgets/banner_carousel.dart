@@ -13,7 +13,6 @@ class BannerCarousel extends StatefulWidget {
 
   final List<LibraryBanner> banners;
 
-  /// Height of the carousel with its page indicator for a given [width].
   static double heightFor(double width) =>
       _BannerCarouselState.cardHeightFor(width) +
       _BannerCarouselState._indicatorSpacing +
@@ -27,7 +26,6 @@ class _BannerCarouselState extends State<BannerCarousel> {
   static const _viewportFraction = 0.84;
   static const _gap = 8.0;
 
-  /// Width to height of a single banner card.
   static const _cardAspectRatio = 1.9;
 
   static const _indicatorSpacing = 14.0;
@@ -35,12 +33,11 @@ class _BannerCarouselState extends State<BannerCarousel> {
   static double cardHeightFor(double width) =>
       (width * _viewportFraction - _gap * 2) / _cardAspectRatio;
 
-  /// Pause between automatic page turns.
   static const _autoScrollInterval = Duration(seconds: 4);
 
   final _controller = PageController(viewportFraction: _viewportFraction);
 
-  /// Turns pages until the user touches the banners for the first time.
+  /// Stops once the user touches the banners.
   Timer? _autoScroll;
 
   @override

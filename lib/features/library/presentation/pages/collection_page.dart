@@ -8,21 +8,17 @@ import 'package:happy_color/features/library/presentation/widgets/collection_cou
 import 'package:happy_color/features/library/presentation/widgets/banner_card.dart';
 import 'package:happy_color/features/library/presentation/widgets/category_pictures.dart';
 
-/// Everything behind one banner: its artwork and the pictures of its category.
-///
-/// The artwork scrolls away under a bar that keeps the back button and shows
-/// the collection title once the artwork is gone.
+/// A banner's artwork and the pictures of its category.
 class CollectionPage extends ConsumerWidget {
   const CollectionPage({super.key, required this.categoryId});
 
   final String categoryId;
 
-  /// Width to height of the banner artwork.
   static const _bannerRatio = 1.9;
 
-  /// The last stretch of the collapse, over which the back button loses its
-  /// white circle and the title comes in. Both follow the scroll itself: a
-  /// switch at one point flickers when the scroll hovers around it.
+  /// The last stretch of the collapse, over which the title comes in. It
+  /// follows the scroll: a switch at one point flickers when the scroll
+  /// hovers around it.
   static const _handover = 48.0;
 
   @override
@@ -49,7 +45,6 @@ class CollectionPage extends ConsumerWidget {
         slivers: [
           SliverAppBar(
             pinned: true,
-            // The artwork keeps its own shape, status bar included.
             expandedHeight: MediaQuery.sizeOf(context).width / ratio,
             backgroundColor: AppColors.background,
             surfaceTintColor: Colors.transparent,
@@ -81,7 +76,6 @@ class CollectionPage extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    // The title takes over once the artwork has scrolled away.
                     Positioned(
                       top: statusBar,
                       left: 0,

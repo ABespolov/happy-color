@@ -36,8 +36,7 @@ class _CategoryTabsState extends State<CategoryTabs> {
     super.dispose();
   }
 
-  /// Measured once per list of categories: measuring text on every build
-  /// would run for every frame the underline moves.
+  /// Measured once: every frame the underline moves is a build.
   late List<double> _widths;
 
   @override
@@ -53,7 +52,6 @@ class _CategoryTabsState extends State<CategoryTabs> {
     if (old.selectedId != widget.selectedId) _showSelected();
   }
 
-  /// Brings the selected name fully into view, with the next one peeking.
   void _showSelected() {
     if (!_scroll.hasClients || widget.categories.isEmpty) return;
     final widths = _widths;
@@ -86,8 +84,6 @@ class _CategoryTabsState extends State<CategoryTabs> {
     return index < 0 ? 0 : index;
   }
 
-  /// Names are measured, not laid out twice: the underline has to know where
-  /// every name starts before anything is painted.
   List<double> _measure() => [
     for (final category in widget.categories)
       (TextPainter(
@@ -150,8 +146,7 @@ class _CategoryTabsState extends State<CategoryTabs> {
   }
 }
 
-/// A name in the bar. Its weight never changes, so the row never shifts
-/// while the underline travels.
+/// Its weight never changes, so the row never shifts.
 class _CategoryTab extends StatelessWidget {
   const _CategoryTab({
     super.key,

@@ -2,8 +2,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-/// Draws the picture's line art image over the canvas, in place of stroking
-/// every region outline.
 class LineArtPainter extends CustomPainter {
   LineArtPainter(this.lines);
 

@@ -11,8 +11,7 @@ import 'package:happy_color/features/progress/domain/entities/picture_progress.d
 import 'package:happy_color/features/progress/presentation/providers/progress_providers.dart';
 import 'package:happy_color/features/progress/presentation/widgets/picture_actions_sheet.dart';
 
-/// A picture in a grid: opens it for coloring, stars it on a long press and
-/// shows how far it is colored.
+/// A picture in a grid.
 class PictureTile extends ConsumerWidget {
   const PictureTile({super.key, required this.id, required this.assetDir});
 
@@ -21,8 +20,7 @@ class PictureTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Only this picture's progress, so coloring one does not rebuild the
-    // cards of all the others.
+    // Coloring one picture does not rebuild every card.
     final progress = ref.watch(
       progressProvider.select((progress) => progress.value?[id]),
     );
@@ -32,7 +30,6 @@ class PictureTile extends ConsumerWidget {
       borderRadius: BorderRadius.circular(24),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        // A picture with colors in it asks what to do with them first.
         onTap: () => switch (progress) {
           PictureProgress(isStarted: true) && final started =>
             PictureActionsSheet.show(context, started),
@@ -40,8 +37,6 @@ class PictureTile extends ConsumerWidget {
         },
         onLongPress: () =>
             ref.read(progressProvider.notifier).toggleStarred(id, assetDir),
-        // A new card eases in; one given another picture, as on a category
-        // switch, lets the old picture fade out before the new one comes in.
         child: FadeSwap(
           child: Stack(
             key: ValueKey(id),
@@ -49,8 +44,6 @@ class PictureTile extends ConsumerWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.all(12),
-                // A picture in progress shows the colors it has so far, a
-                // finished one all of them, an untouched one its lines.
                 child: switch (progress) {
                   PictureProgress(isStarted: true, :final filled)
                       when !completed =>
@@ -59,8 +52,6 @@ class PictureTile extends ConsumerWidget {
                       filled: filled,
                       size: 400,
                     ),
-                  // The thumbnails keep a grid of cards from decoding
-                  // pictures many times the size of a cell.
                   _ => Image.asset(
                     '$assetDir/'
                     '${completed ? 'artwork_thumb' : 'lines_thumb'}.webp',

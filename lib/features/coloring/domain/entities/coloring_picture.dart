@@ -42,8 +42,7 @@ class PictureRegion {
   final double labelRadius;
 }
 
-/// A color-by-number picture whose regions are stored as a pixel map: every
-/// pixel holds the index of the region it belongs to.
+/// A color-by-number picture.
 class ColoringPicture {
   ColoringPicture({
     required this.size,

@@ -26,12 +26,10 @@ abstract final class Routes {
   };
 }
 
-/// Pushed screens slide in from the side and swipe back, on both platforms.
 CupertinoPage<void> _slideIn(GoRouterState state, Widget child) =>
     CupertinoPage(key: state.pageKey, child: child);
 
-/// Every tab keeps its own navigation stack, so a collection opened from the
-/// library is still there after a trip to another tab.
+/// Every tab keeps its own navigation stack.
 final router = GoRouter(
   initialLocation: Routes.myFeed,
   routes: [

@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
 import 'package:happy_color/features/navigation/presentation/widgets/app_tab_bar.dart';
 
-/// Holds the tab bar and the branch of the selected tab.
 class HomeShell extends StatelessWidget {
   const HomeShell({super.key, required this.shell});
 

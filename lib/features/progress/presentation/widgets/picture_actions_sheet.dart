@@ -9,7 +9,7 @@ import 'package:happy_color/features/progress/domain/entities/picture_progress.d
 import 'package:happy_color/features/progress/presentation/providers/progress_providers.dart';
 import 'package:happy_color/l10n/app_localizations.dart';
 
-/// What to do with a picture that is already colored, at least in part.
+/// What to do with a picture that is already partly colored.
 class PictureActionsSheet extends ConsumerWidget {
   const PictureActionsSheet({super.key, required this.progress});
 
@@ -18,8 +18,7 @@ class PictureActionsSheet extends ConsumerWidget {
   static Future<void> show(BuildContext context, PictureProgress progress) =>
       showModalBottomSheet<void>(
         context: context,
-        // The tab bar belongs to the shell, so the sheet has to come from the
-        // root navigator to cover it.
+        // Covers the shell's tab bar.
         useRootNavigator: true,
         backgroundColor: AppColors.tabBar,
         isScrollControlled: true,
@@ -32,8 +31,7 @@ class PictureActionsSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
-    // Whichever action is picked opens the picture, so its textures are
-    // decoded while the sheet is up rather than once the page is.
+    // Every action opens the picture.
     ref.read(coloringSceneLoaderProvider).warm(progress.assetDir);
     return SafeArea(
       child: Padding(

@@ -30,7 +30,6 @@ class ColoringView extends StatefulWidget {
   final ui.Image artwork;
   final ui.Image lines;
 
-  /// Regions colored in an earlier session.
   final Set<int> filled;
 
   final void Function(Set<int> filled) onFilledChanged;
@@ -53,7 +52,6 @@ class _ColoringViewState extends State<ColoringView>
   final _transform = TransformationController();
   late final _labels = LabelAtlas(widget.picture.palette.length);
 
-  /// Slides the palette in once the picture is ready.
   late final _entrance = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 450),
@@ -65,10 +63,8 @@ class _ColoringViewState extends State<ColoringView>
   );
   Animation<Matrix4>? _fitAnimation;
 
-  /// True while the picture is zoomed in or moved off centre.
   bool get _zoomed => _transform.value != Matrix4.identity();
 
-  /// Brings the whole picture back into view.
   void _fitToScreen() {
     _fitAnimation = Matrix4Tween(
       begin: _transform.value,
@@ -99,7 +95,6 @@ class _ColoringViewState extends State<ColoringView>
   @override
   Widget build(BuildContext context) {
     final picture = widget.picture;
-    // The palette keeps its own room for the home indicator.
     return SafeArea(
       bottom: false,
       child: Column(

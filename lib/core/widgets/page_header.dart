@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
 
-/// Page title over the header gradient, above the sheet.
-///
-/// [background] paints that gradient behind a whole page.
+/// Page title over the header gradient.
 class PageHeader extends StatelessWidget {
   const PageHeader({super.key, required this.title});
 
@@ -12,7 +10,7 @@ class PageHeader extends StatelessWidget {
   static const _titleHeight = 40.0;
   static const _padding = EdgeInsets.fromLTRB(16, 32, 16, 24);
 
-  /// Full height including the status bar above the title.
+  /// Including the status bar.
   static double heightOf(BuildContext context) =>
       MediaQuery.paddingOf(context).top + _padding.vertical + _titleHeight;
 

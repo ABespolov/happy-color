@@ -36,16 +36,14 @@ class _SplashGateState extends ConsumerState<SplashGate> {
     ]);
     if (!mounted) return;
     setState(() => _ready = true);
-    // The other screens are warmed up once the splash has faded out, so the
-    // fade does not share its frames with the decoding.
+    // The fade does not share its frames with the decoding.
     await Future<void>.delayed(SplashGate._fade);
     if (mounted) await startup.warmUpBehind(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    // The gradient sits behind the switch as well, so nothing black shows
-    // through while the splash fades into the app.
+    // Nothing black shows through while the splash fades into the app.
     return DecoratedBox(
       decoration: PageHeader.background,
       child: AnimatedSwitcher(
@@ -79,12 +77,9 @@ class _SplashState extends State<_Splash> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: PageHeader.background,
-      // Without this the text would come with the debug underline that marks
-      // text drawn outside a Material.
       child: Material(
         type: MaterialType.transparency,
         child: Center(
-          // The title breathes while the pictures are being warmed up.
           child: ScaleTransition(
             scale: Tween(begin: 0.94, end: 1.04).animate(
               CurvedAnimation(parent: _breathing, curve: Curves.easeInOutSine),

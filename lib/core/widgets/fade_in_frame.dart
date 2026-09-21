@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// A `frameBuilder` for [Image]: a picture that is still decoding eases in
-/// once it arrives, while one the image cache already has is drawn as it is.
+/// A `frameBuilder` for [Image] that eases in pictures still decoding.
 Widget fadeInFrame(
   BuildContext context,
   Widget child,

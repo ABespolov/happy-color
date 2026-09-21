@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
 import 'package:happy_color/features/navigation/presentation/widgets/tab_icon.dart';
 
-/// A tab with an icon that plays its animation on every tap.
 class TabBarItem extends StatefulWidget {
   const TabBarItem({
     super.key,
@@ -12,7 +11,6 @@ class TabBarItem extends StatefulWidget {
     required this.onTap,
   });
 
-  /// Image of the icon.
   final String icon;
   final String label;
   final bool selected;

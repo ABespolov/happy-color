@@ -4,7 +4,6 @@ import 'package:happy_color/features/progress/domain/entities/picture_progress.d
 import 'package:happy_color/features/progress/domain/repositories/progress_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Keeps one entry per picture in shared preferences.
 class PrefsProgressRepository implements ProgressRepository {
   PrefsProgressRepository(this._prefs);
 

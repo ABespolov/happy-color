@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:happy_color/core/widgets/picture_tile.dart';
 
-/// The two-column grid of pictures used by the feed, the library and a
-/// collection.
+/// The two-column grid of pictures.
 class PictureSliverGrid extends StatelessWidget {
   const PictureSliverGrid({
     super.key,
@@ -11,13 +10,11 @@ class PictureSliverGrid extends StatelessWidget {
     this.padding = const EdgeInsets.fromLTRB(16, 8, 16, 0),
   });
 
-  /// Picture ids with the folder each one is stored in.
   final List<({String id, String assetDir})> pictures;
 
   final EdgeInsets padding;
 
-  /// How far beyond the screen a grid keeps its cards built, so the pictures
-  /// of the next rows are decoded before they scroll into view.
+  /// The next rows decode before they scroll into view.
   static const cacheExtent = ScrollCacheExtent.pixels(800);
 
   @override
@@ -31,9 +28,8 @@ class PictureSliverGrid extends StatelessWidget {
           crossAxisSpacing: 16,
         ),
         itemCount: pictures.length,
-        // Cells are kept by position on purpose: when the list changes, as
-        // on a category switch, every cell stays where it is and fades
-        // from the picture it showed to the one it shows now.
+        // Cells are kept by position on purpose, so on a category switch
+        // each fades from its old picture to the new one.
         itemBuilder: (context, index) => PictureTile(
           id: pictures[index].id,
           assetDir: pictures[index].assetDir,

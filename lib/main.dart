@@ -6,28 +6,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/app/app.dart';
 import 'package:happy_color/features/progress/presentation/providers/progress_providers.dart';
 
-/// Outlines every repaint in a changing color, to see what is being redrawn
-/// while scrolling. Debug builds only: the drawing is stripped out of profile
-/// and release builds, where frame times are measured in DevTools instead.
+/// Outlines every repaint in debug builds.
 /// Run with `--dart-define=repaint_rainbow=true`.
 const _repaintRainbow = bool.fromEnvironment('repaint_rainbow');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (kDebugMode && _repaintRainbow) debugRepaintRainbowEnabled = true;
-  // Two caches share the memory: this one holds assets decoded through an
-  // ImageProvider, the preview cache holds the pictures the app paints itself.
-  // The banners take about 20 MB at screen width and a category's thumbnails
-  // some 40 MB, so anything less than this would drop one category's
-  // thumbnails while another is shown, and they would decode again, white
-  // first, on every switch back.
+  // Banners take about 20 MB and a category's thumbnails some 40 MB; less
+  // than this drops one category's thumbnails while another is shown, and
+  // they decode again, white first, on every switch back.
   PaintingBinding.instance.imageCache.maximumSizeBytes = 160 << 20;
 
-  // Both go over a platform channel, so they are waited for together: the
-  // native splash stays up until runApp.
+  // Waited for together: the native splash stays up until runApp.
   final (_, progress) = await (
-    // Draw under the status and navigation bars. This is the default when
-    // the app targets a recent Android, and a no-op before Android 10.
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge),
     createProgressRepository(),
   ).wait;

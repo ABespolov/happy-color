@@ -4,7 +4,6 @@ import 'package:happy_color/features/navigation/domain/entities/app_tab.dart';
 import 'package:happy_color/features/navigation/presentation/widgets/tab_bar_item.dart';
 import 'package:happy_color/l10n/app_localizations.dart';
 
-/// White rounded bottom bar with animated tab icons.
 class AppTabBar extends StatelessWidget {
   const AppTabBar({
     super.key,
@@ -53,16 +52,13 @@ class AppTabBar extends StatelessWidget {
     );
   }
 
-  /// A gesture bar only needs part of its inset, otherwise the labels sit on
-  /// a wide empty strip; the buttons of a navigation bar need all of theirs,
-  /// or they cover the labels. Where the system leaves no inset at all, the
-  /// labels still keep some room instead of touching the screen edge.
+  /// A gesture bar needs only part of its inset; a navigation bar with
+  /// buttons needs all of it, or the buttons cover the labels.
   static double _bottomInset(BuildContext context) {
     final inset = MediaQuery.viewPaddingOf(context).bottom;
     final room = inset > _gestureBarHeight
         ? inset
         : inset.clamp(_minimumInset, 20.0);
-    // Plus a gap, so the labels never sit right on the system bar.
     return room + _gap;
   }
 

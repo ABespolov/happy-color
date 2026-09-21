@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Shows [child], easing it in when created. When a child with another key
-/// arrives, the one on screen fades out first and the new one eases in
-/// after it is gone: the two are never drawn over each other.
+/// Eases [child] in. A child with another key comes in only after the old
+/// one has faded out, so the two are never drawn over each other.
 class FadeSwap extends StatefulWidget {
   const FadeSwap({super.key, required this.child});
 
@@ -33,7 +32,6 @@ class _FadeSwapState extends State<FadeSwap>
 
   late Widget _shown = widget.child;
 
-  /// The child to show once the current one has faded out.
   Widget? _next;
   var _swapping = false;
 

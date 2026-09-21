@@ -7,9 +7,8 @@ import 'package:happy_color/core/theme/app_colors.dart';
 /// Page layout for a full-screen [CustomScrollView]: [top] content followed by
 /// a rounded-top sheet with a [header] and the [slivers] below it.
 ///
-/// While scrolling, [top] slides under the status bar. Once the sheet reaches
-/// it, the header stays pinned: the status bar area takes the sheet color so
-/// the content passes underneath, and the rounded corners straighten out.
+/// Once the sheet reaches the status bar, the header stays pinned and the
+/// rounded corners straighten out.
 class SheetSliver extends StatelessWidget {
   const SheetSliver({
     super.key,
@@ -47,14 +46,12 @@ class SheetSliver extends StatelessWidget {
           sliver: SliverMainAxisGroup(
             slivers: [
               ...slivers,
-              // Leave room for the floating tab bar.
               SliverToBoxAdapter(
                 child: SizedBox(
                   height: MediaQuery.paddingOf(context).bottom + 16,
                 ),
               ),
-              // Short content would leave the page background showing below
-              // the sheet, so the sheet always reaches the bottom.
+              // The sheet always reaches the bottom.
               const SliverFillRemaining(
                 hasScrollBody: false,
                 child: SizedBox.shrink(),

@@ -12,7 +12,7 @@ final progressRepositoryProvider = Provider<ProgressRepository>(
 Future<ProgressRepository> createProgressRepository() async =>
     PrefsProgressRepository(await SharedPreferences.getInstance());
 
-/// Progress of every picture the user has touched, by picture id.
+/// Progress by picture id.
 final progressProvider =
     AsyncNotifierProvider<ProgressNotifier, Map<String, PictureProgress>>(
       ProgressNotifier.new,
@@ -41,7 +41,6 @@ class ProgressNotifier extends AsyncNotifier<Map<String, PictureProgress>> {
     _update(progress.copyWith(starred: !progress.starred));
   }
 
-  /// Starts the picture over, keeping it in the library as untouched.
   void clear(String id) {
     final progress = state.value?[id];
     if (progress != null) _update(progress.copyWith(filled: const {}));

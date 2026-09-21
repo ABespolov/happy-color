@@ -17,9 +17,7 @@ class BannerCard extends StatelessWidget {
     [Color(0xFFD9C2F0), Color(0xFFA785D6)],
   ];
 
-  /// Banners are decoded no wider than the screen, in the carousel, on the
-  /// collection page and when warmed up at startup alike, so the image cache
-  /// holds one copy of each.
+  /// The same everywhere, so the image cache holds one copy of each banner.
   static int cacheWidth(BuildContext context) =>
       (MediaQuery.sizeOf(context).width *
               MediaQuery.devicePixelRatioOf(context))

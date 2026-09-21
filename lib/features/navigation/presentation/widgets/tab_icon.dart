@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// A tab icon that squashes, hops and settles back every time its tab is
-/// tapped. One image, one animation.
+/// A tab icon that squashes, hops and settles back on every tap.
 class TabIcon extends StatelessWidget {
   const TabIcon({
     super.key,

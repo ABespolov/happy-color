@@ -3,15 +3,13 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'picture_progress.freezed.dart';
 part 'picture_progress.g.dart';
 
-/// What the user has done with one picture: which regions are colored and
-/// whether it is starred.
+/// Which regions of a picture are colored, and whether it is starred.
 @freezed
 abstract class PictureProgress with _$PictureProgress {
   const factory PictureProgress({
     required String id,
     @JsonKey(name: 'dir') required String assetDir,
 
-    /// Indices of the regions that are already colored.
     @Default(<int>{}) Set<int> filled,
 
     /// Regions in the picture; 0 until it has been opened once.

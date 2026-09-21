@@ -11,23 +11,19 @@ class HappyColorApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Set here rather than once in main(): Flutter reads the style off the
-    // widget tree every frame, so an app bar would otherwise overwrite it.
+    // Not in main(): an app bar would overwrite it.
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.dark,
         statusBarBrightness: Brightness.light,
         systemNavigationBarIconBrightness: Brightness.dark,
-        // Android would otherwise darken the strip behind the three
-        // navigation buttons; the tab bar under them is already light.
+        // The tab bar behind the navigation buttons is already light.
         systemNavigationBarContrastEnforced: false,
       ),
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          // Screens slide in from the side on both platforms, and an iOS-style
-          // swipe back comes with it.
           pageTransitionsTheme: PageTransitionsTheme(
             builders: {
               TargetPlatform.android: const CupertinoPageTransitionsBuilder(),

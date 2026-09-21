@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
 
-/// Round icon button floating over content, like the back arrow on the
-/// collection and coloring screens.
+/// Round icon button floating over content.
 class CircleIconButton extends StatelessWidget {
   const CircleIconButton({
     super.key,
@@ -15,7 +14,6 @@ class CircleIconButton extends StatelessWidget {
     this.iconColor = AppColors.ink,
   });
 
-  /// Goes back, which is what most of these buttons do.
   factory CircleIconButton.back(
     BuildContext context, {
     Color background = Colors.white,

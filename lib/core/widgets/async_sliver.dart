@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/l10n/app_localizations.dart';
 
-/// Builds a sliver once [value] has loaded, and shows the spinner and the
-/// error message in one place for every screen.
+/// Builds a sliver once [value] has loaded, with a spinner and an error
+/// message until then.
 class AsyncSliver<T> extends StatelessWidget {
   const AsyncSliver({
     super.key,

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Keeps every tab alive and slides between them like a pager: the new tab
-/// comes in from one edge while the old one leaves through the other.
+/// Keeps every tab alive and slides between them like a pager.
 class TabSwitcher extends StatefulWidget {
   const TabSwitcher({super.key, required this.index, required this.children});
 
@@ -61,13 +60,10 @@ class _TabSwitcherState extends State<TabSwitcher>
     final selected = index == widget.index;
     final leaving = index == _previous && !selected && t < 1;
     final shown = selected || leaving;
-    // Both tabs move by a full screen width, so they stay edge to edge.
     final direction = _forward ? 1.0 : -1.0;
     final offset = selected ? direction * (1 - t) : -direction * t;
-    // Off-screen tabs stay in the tree, keeping their state and scroll
-    // position, but take no hits and paint nothing. The shape of this wrapping
-    // never changes: swapping one widget for another here would throw the tab
-    // underneath away and build it again from scratch.
+    // The shape of this wrapping never changes: swapping a widget here
+    // would rebuild the tab underneath from scratch.
     return Offstage(
       key: ValueKey(index),
       offstage: !shown,

@@ -115,7 +115,6 @@ class _ContactCard extends StatelessWidget {
   }
 }
 
-/// Version and build number of the installed app.
 class _AppVersion extends StatelessWidget {
   const _AppVersion();
 

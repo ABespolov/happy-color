@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:happy_color/core/theme/app_colors.dart';
 
-/// Dots where the pill follows the swipe continuously.
+/// Dots with a pill that follows the swipe.
 class PageIndicator extends StatelessWidget {
   const PageIndicator({super.key, required this.count, required this.page});
 

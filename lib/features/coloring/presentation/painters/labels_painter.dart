@@ -30,8 +30,7 @@ class LabelsPainter extends CustomPainter {
 
   final _paint = Paint()..filterQuality = FilterQuality.medium;
 
-  /// Room for a label on every region, filled in on each paint: this runs
-  /// on every frame of a pan or a zoom, so it allocates nothing then.
+  /// Reused: paint runs on every frame of a pan or a zoom.
   late final _transforms = Float32List(controller.picture.regions.length * 4);
   late final _rects = Float32List(controller.picture.regions.length * 4);
 

@@ -20,7 +20,6 @@ class EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        // Sit a little above the middle, clear of the floating tab bar.
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 64),
         child: Column(
           mainAxisSize: MainAxisSize.min,

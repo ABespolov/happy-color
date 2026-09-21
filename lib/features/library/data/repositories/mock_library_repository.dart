@@ -38,7 +38,6 @@ class MockLibraryRepository implements LibraryRepository {
       ],
   };
 
-  /// One banner per content category.
   static final _banners = [
     for (final category in _contentCategories)
       LibraryBanner(
