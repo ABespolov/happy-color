@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 
 import 'package:happy_color/features/coloring/domain/entities/coloring_picture.dart';
+import 'package:happy_color/features/coloring/domain/entities/region_map.dart';
 import 'package:happy_color/features/coloring/presentation/rendering/picture_images.dart';
 
 class ColoringController extends ChangeNotifier {
@@ -76,8 +77,14 @@ class ColoringController extends ChangeNotifier {
     }
   }
 
+  /// Taps do nothing until it is set.
+  RegionMap? regionMap;
+
   void tapAt(Offset scenePoint) {
-    final id = picture.regionAt(scenePoint);
+    final size = picture.size;
+    final id = regionMap?.regionAt(
+      Offset(scenePoint.dx / size.width, scenePoint.dy / size.height),
+    );
     if (id == null || _state[id] != _empty) return;
     if (picture.regions[id].colorIndex != selectedColor.value) return;
 

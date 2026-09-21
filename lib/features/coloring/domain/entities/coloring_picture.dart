@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:ui';
 
 class PictureRegion {
@@ -48,35 +47,14 @@ class ColoringPicture {
     required this.size,
     required this.palette,
     required this.regions,
-    required this.regionMap,
-    required this.mapWidth,
-    required this.mapHeight,
   }) : regionsByColor = List.generate(palette.length, (_) => <int>[]) {
     for (var id = 0; id < regions.length; id++) {
       regionsByColor[regions[id].colorIndex].add(id);
     }
   }
 
-  /// [regionMapRgba] is the decoded `regions.png`: region index + 1 in the
-  /// red (low byte) and green (high byte) channels, 0 for no region.
-  factory ColoringPicture.fromJson(
-    String source, {
-    required ByteData regionMapRgba,
-    required int mapWidth,
-    required int mapHeight,
-  }) {
+  factory ColoringPicture.fromJson(String source) {
     final json = jsonDecode(source) as Map<String, dynamic>;
-
-    final pixels = mapWidth * mapHeight;
-    final bytes = regionMapRgba.buffer.asUint8List(
-      regionMapRgba.offsetInBytes,
-      regionMapRgba.lengthInBytes,
-    );
-    final regionMap = Int32List(pixels);
-    for (var i = 0; i < pixels; i++) {
-      regionMap[i] = bytes[i * 4] + (bytes[i * 4 + 1] << 8) - 1;
-    }
-
     return ColoringPicture(
       size: Size(
         (json['width'] as num).toDouble(),
@@ -92,9 +70,6 @@ class ColoringPicture {
         for (final r in json['regions'] as List)
           PictureRegion.fromJson(r as Map<String, dynamic>),
       ],
-      regionMap: regionMap,
-      mapWidth: mapWidth,
-      mapHeight: mapHeight,
     );
   }
 
@@ -102,17 +77,4 @@ class ColoringPicture {
   final List<Color> palette;
   final List<PictureRegion> regions;
   final List<List<int>> regionsByColor;
-
-  /// Region index per map pixel, row by row; -1 where there is no region.
-  final Int32List regionMap;
-  final int mapWidth;
-  final int mapHeight;
-
-  int? regionAt(Offset point) {
-    final x = (point.dx / size.width * mapWidth).floor();
-    final y = (point.dy / size.height * mapHeight).floor();
-    if (x < 0 || y < 0 || x >= mapWidth || y >= mapHeight) return null;
-    final id = regionMap[y * mapWidth + x];
-    return id < 0 ? null : id;
-  }
 }

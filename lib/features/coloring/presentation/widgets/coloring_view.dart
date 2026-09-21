@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -8,6 +9,7 @@ import 'package:happy_color/core/widgets/circle_icon_button.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/color_palette.dart';
 import 'package:happy_color/features/coloring/presentation/controllers/coloring_controller.dart';
 import 'package:happy_color/features/coloring/domain/entities/coloring_picture.dart';
+import 'package:happy_color/features/coloring/domain/entities/region_map.dart';
 import 'package:happy_color/features/coloring/presentation/painters/coloring_canvas_painter.dart';
 import 'package:happy_color/features/coloring/presentation/painters/labels_painter.dart';
 import 'package:happy_color/features/coloring/presentation/painters/line_art_painter.dart';
@@ -55,7 +57,7 @@ class _ColoringViewState extends State<ColoringView>
   late final _entrance = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 450),
-  )..forward();
+  );
 
   late final _fit = AnimationController(
     vsync: this,
@@ -80,6 +82,25 @@ class _ColoringViewState extends State<ColoringView>
       final animation = _fitAnimation;
       if (animation != null) _transform.value = animation.value;
     });
+    unawaited(_readRegionMap());
+  }
+
+  /// Taps need the region map on the CPU. Reading it back from the GPU
+  /// stalls a frame, so it waits until the view has come in.
+  Future<void> _readRegionMap() async {
+    try {
+      await _entrance.forward().orCancel;
+    } on TickerCanceled {
+      return;
+    }
+    final map = widget.regionMap;
+    final rgba = await map.toByteData();
+    if (!mounted || rgba == null) return;
+    _controller.regionMap = RegionMap(
+      rgba,
+      width: map.width,
+      height: map.height,
+    );
   }
 
   @override

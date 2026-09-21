@@ -89,14 +89,8 @@ class ColoringSceneLoader {
       loadImage('$dir/artwork.webp'),
       loadImage('$dir/lines.webp'),
     ).wait;
-    final regionBytes = (await regions.toByteData())!;
     return ColoringScene(
-      picture: ColoringPicture.fromJson(
-        json,
-        regionMapRgba: regionBytes,
-        mapWidth: regions.width,
-        mapHeight: regions.height,
-      ),
+      picture: ColoringPicture.fromJson(json),
       shader: program.fragmentShader(),
       regionMap: regions,
       artwork: artwork,
