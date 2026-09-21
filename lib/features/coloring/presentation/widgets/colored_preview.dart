@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/core/widgets/fade_in_frame.dart';
 import 'package:happy_color/core/widgets/picture_thumbnail.dart';
+import 'package:happy_color/features/coloring/presentation/painters/coloring_canvas_painter.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/preview_cache.dart';
 
 /// Shows a picture the way the user left it: colored regions come from the
@@ -199,48 +200,74 @@ Future<ui.Image> _render(
   Set<int> filled,
 ) async {
   final small = size <= ColoredPreview.thumbnailSize;
-  final (regions, artwork, lines) = await (
-    cache.regionMap(assetDir, () => loadRegionMap(assetDir)),
+  final (program, regions, artwork, lines, state) = await (
+    coloringProgram,
+    cache.regionTexture(assetDir),
     _load('$assetDir/${small ? 'artwork_thumb' : 'artwork'}.webp', size),
     _load('$assetDir/${small ? 'lines_thumb' : 'lines'}.webp', size),
+    _stateTexture(filled),
   ).wait;
 
-  final artworkBytes = (await artwork.toByteData())!.buffer.asUint8List();
-  artwork.dispose();
-  // Painting every pixel is the slow part, and it holds no engine objects,
-  // so it happens away from the isolate that draws the frames.
-  final pixels = await cache.worker.paint(
-    assetDir: assetDir,
-    regions: regions.bytes,
-    regionsWidth: regions.width,
-    regionsHeight: regions.height,
-    artwork: artworkBytes,
-    filled: filled,
-    size: size,
-  );
-  final painted = await decodePixels(pixels, size, size);
+  // The shader the coloring view draws with, with nothing selected and no
+  // fill running: colored regions show the artwork, the rest stays clear.
+  final shader = program.fragmentShader();
+  var i = 0;
+  void set(double value) => shader.setFloat(i++, value);
+  set(size.toDouble());
+  set(size.toDouble());
+  set(state.width.toDouble());
+  set(state.height.toDouble());
+  set(-1); // Selected color.
+  set(1); // Stripe width.
+  for (var slot = 0; slot < 8 * 4; slot++) {
+    set(0);
+  }
+  shader
+    ..setImageSampler(0, regions)
+    ..setImageSampler(1, state)
+    ..setImageSampler(2, artwork, filterQuality: FilterQuality.medium);
 
+  final bounds = Offset.zero & Size.square(size.toDouble());
   final recorder = ui.PictureRecorder();
   ui.Canvas(recorder)
-    ..drawImage(painted, Offset.zero, Paint())
+    ..drawRect(bounds, Paint()..color = const Color(0xFFFFFFFF))
+    ..drawRect(bounds, Paint()..shader = shader)
     ..drawImage(lines, Offset.zero, Paint());
   final picture = recorder.endRecording();
   final image = await picture.toImage(size, size);
   picture.dispose();
+  shader.dispose();
+  regions.dispose();
+  artwork.dispose();
   lines.dispose();
-  painted.dispose();
+  state.dispose();
   return image;
+}
+
+/// Regions per row of the state texture.
+const _stateWidth = 1024;
+
+/// The state texture the shader reads, one texel per region: R is set for a
+/// colored one. It only reaches the last colored region, plus a row left
+/// empty: the shader reads past the texture as its edge, so every region
+/// beyond lands on that row and stays white.
+Future<ui.Image> _stateTexture(Set<int> filled) {
+  final last = filled.fold(0, (last, id) => id > last ? id : last);
+  final height = last ~/ _stateWidth + 2;
+  final bytes = Uint8List(_stateWidth * height * 4);
+  for (var i = 3; i < bytes.length; i += 4) {
+    bytes[i] = 255;
+  }
+  for (final id in filled) {
+    bytes[id * 4] = 255;
+  }
+  return decodePixels(bytes, _stateWidth, height);
 }
 
 /// The region map keeps its own resolution: scaling it would blend the region
 /// numbers stored in its pixels into numbers of other regions.
-Future<RegionMap> loadRegionMap(String assetDir) async {
-  final image = await _load('$assetDir/regions.png', null);
-  final bytes = (await image.toByteData())!.buffer.asUint8List();
-  final map = RegionMap(bytes: bytes, width: image.width, height: image.height);
-  image.dispose();
-  return map;
-}
+Future<ui.Image> loadRegionMap(String assetDir) =>
+    _load('$assetDir/regions.png', null);
 
 Future<ui.Image> _load(String asset, int? size) async {
   final data = await rootBundle.load(asset);

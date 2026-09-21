@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/features/coloring/domain/entities/coloring_picture.dart';
-import 'package:happy_color/features/coloring/presentation/widgets/colored_preview.dart';
+import 'package:happy_color/features/coloring/presentation/painters/coloring_canvas_painter.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/preview_cache.dart';
 
 /// Everything the coloring view draws with: the picture, the shader and the
@@ -49,13 +49,6 @@ class ColoringSceneLoader {
   /// The one scene loaded ahead of time, and the folder it is for.
   (String, Future<ColoringScene>)? _warmed;
 
-  Future<ui.FragmentProgram>? _program;
-
-  /// The coloring shader, read from the bundle the first time it is asked
-  /// for and kept from then on.
-  Future<ui.FragmentProgram> get program =>
-      _program ??= ui.FragmentProgram.fromAsset('shaders/coloring.frag');
-
   /// Starts loading the scene of [assetDir] unless it is on its way already.
   void warm(String assetDir) {
     if (_warmed?.$1 == assetDir) return;
@@ -83,27 +76,24 @@ class ColoringSceneLoader {
 
   Future<ColoringScene> _load(String dir) async {
     final (program, json, regions, artwork, lines) = await (
-      this.program,
+      coloringProgram,
       rootBundle.loadString('$dir/picture.json'),
-      // The preview of this picture has decoded its region map already, so
-      // the texture is uploaded from those pixels instead of decoded again.
-      _previews.regionMap(dir, () => loadRegionMap(dir)),
+      // The previews of this picture share the region map texture, so it
+      // is decoded once for both.
+      _previews.regionTexture(dir),
       _image('$dir/artwork.webp'),
       _image('$dir/lines.webp'),
     ).wait;
+    final regionBytes = (await regions.toByteData())!;
     return ColoringScene(
       picture: ColoringPicture.fromJson(
         json,
-        regionMapRgba: ByteData.sublistView(regions.bytes),
+        regionMapRgba: regionBytes,
         mapWidth: regions.width,
         mapHeight: regions.height,
       ),
       shader: program.fragmentShader(),
-      regionMap: await decodePixels(
-        regions.bytes,
-        regions.width,
-        regions.height,
-      ),
+      regionMap: regions,
       artwork: artwork,
       lines: lines,
     );

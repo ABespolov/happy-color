@@ -4,6 +4,12 @@ import 'package:flutter/material.dart';
 
 import 'package:happy_color/features/coloring/presentation/controllers/coloring_controller.dart';
 
+/// The coloring shader, read from the bundle the first time it is asked for
+/// and kept from then on. The coloring view and the previews share it.
+final Future<ui.FragmentProgram> coloringProgram = ui.FragmentProgram.fromAsset(
+  'shaders/coloring.frag',
+);
+
 /// Paints revealed artwork and the selected color's stripes with
 /// `shaders/coloring.frag`, looking up every pixel's region in the region map.
 class ColoringCanvasPainter extends CustomPainter {

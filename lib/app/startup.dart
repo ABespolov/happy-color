@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/core/widgets/picture_thumbnail.dart';
-import 'package:happy_color/features/coloring/presentation/providers/coloring_scene.dart';
+import 'package:happy_color/features/coloring/presentation/painters/coloring_canvas_painter.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/colored_preview.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/preview_cache.dart';
 import 'package:happy_color/features/library/presentation/providers/library_providers.dart';
@@ -32,8 +32,8 @@ class Startup {
   /// Runs behind the feed once it is up.
   Future<void> warmUpBehind(BuildContext context) async {
     // The shader is read from the bundle once; the coloring page finds it
-    // ready.
-    ref.read(coloringSceneLoaderProvider).program.ignore();
+    // ready, unless the feed's previews have read it already.
+    coloringProgram.ignore();
     await Future.wait([
       _banners(context, BannerCard.cacheWidth(context)),
       _libraryCards(context),
