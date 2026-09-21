@@ -24,13 +24,11 @@ class ColoringPage extends ConsumerStatefulWidget {
 }
 
 class _ColoringPageState extends ConsumerState<ColoringPage> {
-  /// Warmed up by the sheet that opened this page, when there was one.
   late final _scene = ref
       .read(coloringSceneLoaderProvider)
       .take(widget.assetDir);
 
-  /// Read up front: `ref` cannot be read once the page is being disposed of,
-  /// and that is when the card preview is warmed up.
+  /// `ref` cannot be read in [dispose], where the card preview is warmed up.
   late final PreviewCache _previews;
 
   @override
@@ -39,18 +37,20 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
     _previews = ref.read(previewCacheProvider);
   }
 
-  /// What was colored when the page last saved, used to build the card-sized
-  /// preview the grid will need.
+  /// What was colored at the last save.
   Set<int> _lastSaved = const {};
 
   void _warmCardPreview() {
     if (_lastSaved.isEmpty) return;
-    coloredPreview(
-      _previews,
-      assetDir: widget.assetDir,
-      size: ColoredPreview.cardSize,
-      filled: _lastSaved,
-    ).ignore();
+    _previews
+        .warm(
+          PreviewKey(
+            assetDir: widget.assetDir,
+            size: ColoredPreview.cardSize,
+            filled: _lastSaved,
+          ),
+        )
+        .ignore();
   }
 
   @override
@@ -61,24 +61,20 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
     super.dispose();
   }
 
-  /// Read once: the view keeps the colored regions itself from then on.
   late final _filled = ref
       .read(progressProvider.notifier)
       .of(widget.id, widget.assetDir)
       .filled;
 
-  /// Kept from the first save: `ref` is not read while the page is being
-  /// disposed of, and that is when the last save happens.
+  /// `ref` cannot be read in [dispose], where the last save happens.
   ProgressNotifier? _progress;
 
   Timer? _save;
 
-  /// The controller's live set of colored regions, once a fill happened.
   Set<int>? _pendingFilled;
 
-  /// Coloring produces a fill every few hundred milliseconds; encoding and
-  /// writing the whole progress for each would run on the UI thread as
-  /// often. Saves are gathered, and the last one goes out with the page.
+  /// Fills come every few hundred milliseconds, and each save encodes the
+  /// whole progress on the UI thread, so saves are batched.
   void _saveFilled(Set<int> filled) {
     _progress ??= ref.read(progressProvider.notifier);
     _pendingFilled = filled;
@@ -89,7 +85,7 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
   void _flush() {
     _save?.cancel();
     _save = null;
-    // The controller's set is live, so what is saved is a copy of it.
+    // The controller's set is live.
     _lastSaved = Set.of(_pendingFilled!);
     _progress?.setFilled(
       widget.id,
@@ -118,10 +114,8 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
           }
           final scene = snapshot.data;
           if (scene != null) _regionCount = scene.picture.regions.length;
-          // The picture is already on screen as a preview while the shader and
-          // the textures load, so there is nothing to wait in front of. The
-          // view is faded in over it once its first frame, the one that
-          // compiles the shader, is out of the way.
+          // The preview shows the picture while the scene loads; the view
+          // fades in over it after its first frame compiles the shader.
           return Stack(
             fit: StackFit.expand,
             children: [
@@ -147,7 +141,6 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
     );
   }
 
-  /// Whether the coloring view has fully covered the preview it opened on.
   var _revealed = false;
 }
 
@@ -204,8 +197,7 @@ class _Loading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // The same layout the coloring view has, so the picture does not jump
-    // when the preview gives way to it.
+    // The coloring view's layout, so the picture does not jump.
     return SafeArea(
       bottom: false,
       child: Column(

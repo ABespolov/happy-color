@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:happy_color/features/coloring/presentation/widgets/colored_preview.dart';
+import 'package:happy_color/features/coloring/presentation/rendering/picture_images.dart';
+import 'package:happy_color/features/coloring/presentation/rendering/preview_renderer.dart';
 
 final previewCacheProvider = Provider<PreviewCache>((ref) {
   final cache = PreviewCache();
@@ -11,181 +12,155 @@ final previewCacheProvider = Provider<PreviewCache>((ref) {
   return cache;
 });
 
-/// What a preview shows: the same picture with the same regions colored looks
-/// the same, so it only has to be rendered once.
+/// A picture at a size with some regions colored.
 @immutable
 class PreviewKey {
   PreviewKey({
     required this.assetDir,
     required this.size,
     required Set<int> filled,
-  }) : _filled = Object.hashAllUnordered(filled);
+  }) : filled = Set.unmodifiable(filled),
+       _hash = Object.hash(assetDir, size, Object.hashAllUnordered(filled));
 
   final String assetDir;
   final int size;
-  final int _filled;
+  final Set<int> filled;
+  final int _hash;
+
+  /// The same picture colored the same way, at any size.
+  bool looksLike(PreviewKey other) =>
+      other.assetDir == assetDir && setEquals(other.filled, filled);
 
   @override
   bool operator ==(Object other) =>
-      other is PreviewKey &&
-      other.assetDir == assetDir &&
-      other.size == size &&
-      other._filled == _filled;
+      other is PreviewKey && other.size == size && looksLike(other);
 
   @override
-  int get hashCode => Object.hash(assetDir, size, _filled);
+  int get hashCode => _hash;
 }
 
-/// Keeps rendered previews around so scrolling a grid does not build the same
-/// picture over and over, and drops the oldest ones once they take too much
-/// memory.
+/// Rendered previews, so scrolling a grid does not render the same picture
+/// over and over. The oldest go once they take more than [budgetBytes].
+///
+/// Every image it hands out is a clone the caller disposes of, so the cache
+/// can let go of its own at any time.
 class PreviewCache {
   PreviewCache({this.budgetBytes = 32 << 20});
 
-  /// How much the rendered previews may take together.
   final int budgetBytes;
 
-  final _entries = <PreviewKey, Future<ui.Image>>{};
-
-  /// The entries that have finished, so a card can paint them right away
-  /// instead of waiting a frame for its future.
+  /// Least recently used first.
   final _ready = <PreviewKey, ui.Image>{};
   var _bytes = 0;
 
-  ui.Image? ready(PreviewKey key) => _ready[key];
+  /// Renders under way, with everyone waiting for each.
+  final _rendering = <PreviewKey, List<Completer<ui.Image>>>{};
 
-  /// A finished preview of the same picture with the same regions colored at
-  /// some other size: a card's preview stands in for a full-screen one while
-  /// that one is being rendered.
-  PreviewKey? readyAtOtherSize(PreviewKey key) {
-    for (final other in _ready.keys) {
-      if (other.assetDir == key.assetDir && other._filled == key._filled) {
-        return other;
-      }
+  var _cleared = false;
+
+  ui.Image? ready(PreviewKey key) {
+    final image = _ready.remove(key);
+    if (image == null) return null;
+    _ready[key] = image;
+    return image.clone();
+  }
+
+  /// Something to show, scaled, while the right size renders.
+  ui.Image? readyAtOtherSize(PreviewKey key) {
+    for (final MapEntry(key: other, value: image) in _ready.entries) {
+      if (other.looksLike(key)) return image.clone();
     }
     return null;
   }
 
-  /// Cards in view hold on to the preview they paint, so it is not disposed
-  /// of under them when the cache runs out of room.
-  final _held = <PreviewKey, int>{};
-
-  void retain(PreviewKey key) =>
-      _held.update(key, (count) => count + 1, ifAbsent: () => 1);
-
-  void release(PreviewKey key) {
-    final count = (_held[key] ?? 1) - 1;
-    if (count > 0) {
-      _held[key] = count;
-      return;
+  /// The preview, rendered unless it is ready.
+  Future<ui.Image> preview(PreviewKey key) {
+    if (ready(key) case final image?) return Future.value(image);
+    final waiter = Completer<ui.Image>();
+    if (_rendering[key] case final waiters?) {
+      waiters.add(waiter);
+    } else {
+      _rendering[key] = [waiter];
+      unawaited(_render(key));
     }
-    _held.remove(key);
-    if (!_entries.containsKey(key)) _dispose(key);
+    return waiter.future;
   }
 
-  /// Previews that were dropped while a card was still painting them.
-  final _disposeWhenFree = <PreviewKey, Future<ui.Image>>{};
+  Future<void> warm(PreviewKey key) async => (await preview(key)).dispose();
 
-  /// Decoded region maps, by picture folder. The map of a picture is the same
-  /// whatever is colored in it, so it is worth keeping while its previews are
-  /// being rebuilt tap after tap, and the coloring view draws with it too.
+  Future<void> _render(PreviewKey key) async {
+    final waiters = _rendering[key]!;
+    try {
+      final image = await renderPreview(
+        assetDir: key.assetDir,
+        size: key.size,
+        filled: key.filled,
+        regionMap: regionTexture(key.assetDir),
+      );
+      for (final waiter in waiters) {
+        waiter.complete(image.clone());
+      }
+      _keep(key, image);
+    } on Object catch (error, stack) {
+      for (final waiter in waiters) {
+        waiter.completeError(error, stack);
+      }
+    } finally {
+      _rendering.remove(key);
+    }
+  }
+
+  void _keep(PreviewKey key, ui.Image image) {
+    if (_cleared) return image.dispose();
+    _ready[key] = image;
+    _bytes += _sizeOf(key);
+    while (_bytes > budgetBytes && _ready.length > 1) {
+      final oldest = _ready.keys.first;
+      _bytes -= _sizeOf(oldest);
+      _ready.remove(oldest)!.dispose();
+    }
+  }
+
+  static int _sizeOf(PreviewKey key) => key.size * key.size * 4;
+
+  /// Decoded region maps. A picture's map is the same whatever is colored,
+  /// and the coloring view draws with it too.
   final _regionMaps = <String, Future<ui.Image>>{};
 
-  /// The region map of [assetDir], as a handle of its own the caller
-  /// disposes of: the cache may let go of its own while it is in use.
-  Future<ui.Image> regionTexture(String assetDir) {
-    final cached = _regionMaps.remove(assetDir);
-    if (cached == null) {
+  /// A few megabytes each.
+  static const _regionMapsKept = 3;
+
+  /// The region map of [assetDir], as a clone the caller disposes of.
+  Future<ui.Image> regionTexture(String assetDir) async {
+    var map = _regionMaps.remove(assetDir);
+    if (map == null) {
       while (_regionMaps.length >= _regionMapsKept) {
-        _disposeRegionMap(_regionMaps.keys.first);
+        unawaited(_disposeLoaded(_regionMaps.remove(_regionMaps.keys.first)!));
       }
+      map = loadRegionMap(assetDir);
     }
-    final map = _regionMaps[assetDir] = cached ?? loadRegionMap(assetDir);
-    return _clone(map);
-  }
-
-  static Future<ui.Image> _clone(Future<ui.Image> image) async =>
-      (await image).clone();
-
-  void _disposeRegionMap(String assetDir) {
-    final map = _regionMaps.remove(assetDir);
-    if (map != null) unawaited(_disposeLoaded(map));
+    _regionMaps[assetDir] = map;
+    return (await map).clone();
   }
 
   static Future<void> _disposeLoaded(Future<ui.Image> image) async {
     try {
       (await image).dispose();
     } on Object {
-      // Nothing was loaded, so there is nothing to let go of.
-    }
-  }
-
-  /// Region maps are a few megabytes each, so only a handful are kept.
-  static const _regionMapsKept = 3;
-
-  Future<ui.Image> of(PreviewKey key, Future<ui.Image> Function() render) {
-    final cached = _entries.remove(key);
-    if (cached != null) {
-      // Putting it back last makes it the most recently used one.
-      return _entries[key] = cached;
-    }
-    final image = render();
-    _entries[key] = image;
-    _bytes += key.size * key.size * 4;
-    unawaited(_settle(key, image));
-    _evict();
-    return image;
-  }
-
-  /// Marks [image] ready once it is rendered, or drops it if it fails, so
-  /// the next request renders it again.
-  Future<void> _settle(PreviewKey key, Future<ui.Image> image) async {
-    try {
-      final rendered = await image;
-      // A preview dropped while it was rendering is not worth keeping.
-      if (_entries[key] == image) _ready[key] = rendered;
-    } on Object {
-      if (_entries[key] == image) _drop(key);
-    }
-  }
-
-  void _evict() {
-    while (_bytes > budgetBytes && _entries.length > 1) {
-      _drop(_entries.keys.first);
-    }
-  }
-
-  void _drop(PreviewKey key) {
-    final image = _entries.remove(key);
-    _ready.remove(key);
-    if (image == null) return;
-    _bytes -= key.size * key.size * 4;
-    _disposeWhenFree[key] = image;
-    if (!_held.containsKey(key)) _dispose(key);
-  }
-
-  void _dispose(PreviewKey key) {
-    final image = _disposeWhenFree.remove(key);
-    if (image != null) unawaited(_disposeAfterFrame(image));
-  }
-
-  /// The card may still be painting it, so the frame is let finish first.
-  static Future<void> _disposeAfterFrame(Future<ui.Image> image) async {
-    final ui.Image rendered;
-    try {
-      rendered = await image;
-    } on Object {
       return;
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) => rendered.dispose());
   }
 
   void clear() {
-    _ready.clear();
-    _held.clear();
-    _regionMaps.keys.toList().forEach(_disposeRegionMap);
-    for (final key in _entries.keys.toList()) {
-      _drop(key);
+    _cleared = true;
+    for (final image in _ready.values) {
+      image.dispose();
     }
+    _ready.clear();
+    _bytes = 0;
+    for (final map in _regionMaps.values) {
+      unawaited(_disposeLoaded(map));
+    }
+    _regionMaps.clear();
   }
 }

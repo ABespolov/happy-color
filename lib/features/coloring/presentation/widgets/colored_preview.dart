@@ -3,15 +3,14 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/core/widgets/fade_in_frame.dart';
 import 'package:happy_color/core/widgets/picture_thumbnail.dart';
-import 'package:happy_color/features/coloring/presentation/painters/coloring_canvas_painter.dart';
+import 'package:happy_color/features/coloring/presentation/rendering/preview_renderer.dart'
+    as renderer;
 import 'package:happy_color/features/coloring/presentation/widgets/preview_cache.dart';
 
-/// Shows a picture the way the user left it: colored regions come from the
-/// artwork, the rest stays white, and the line art is drawn on top.
+/// Shows a picture the way the user left it.
 class ColoredPreview extends ConsumerStatefulWidget {
   const ColoredPreview({
     super.key,
@@ -23,14 +22,9 @@ class ColoredPreview extends ConsumerStatefulWidget {
   final String assetDir;
   final Set<int> filled;
 
-  /// Side of the rendered preview in pixels; a grid cell needs far less than
-  /// a full screen does.
   final int size;
 
-  /// Above this size the full pictures are used instead of the thumbnails.
-  static const thumbnailSize = 512;
-
-  /// Side of a preview on a card.
+  static const thumbnailSize = renderer.thumbnailSize;
   static const cardSize = 400;
 
   @override
@@ -38,27 +32,28 @@ class ColoredPreview extends ConsumerStatefulWidget {
 }
 
 class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
-  /// Kept in a field: `ref` cannot be read while the widget is disposed of.
+  /// `ref` cannot be read while the widget is disposed of.
   late final PreviewCache _cache = ref.read(previewCacheProvider);
 
-  /// The preview to paint right now: the one the cache already has, the one
-  /// of the same picture at another size, or the one shown until a newer
-  /// one finishes. Without it a card would go blank for a moment every time
-  /// what is colored changes.
-  ui.Image? _ready;
+  /// This widget's own handle; stays up until a newer preview replaces it.
+  ui.Image? _image;
+
+  /// Requests are numbered so a slow render never replaces a newer one.
+  var _requested = 0;
+  var _shown = 0;
 
   Timer? _pending;
 
-  /// The preview this card paints, held so the cache keeps it alive, and the
-  /// newer one being rendered, held so it is not dropped before it is shown.
-  PreviewKey? _painted;
-  PreviewKey? _rendering;
-
-  /// True while the preview on screen is not the one for [widget.filled]
-  /// and the card is out of sight: under the coloring page or in another
-  /// tab, where its tickers are off. Rendering waits until it shows again,
-  /// instead of running once per tap for a card nobody sees.
+  /// Set while the card is out of sight (under the coloring page, in another
+  /// tab) and its preview is out of date: it renders once it shows again
+  /// instead of once per tap.
   var _stale = true;
+
+  PreviewKey get _key => PreviewKey(
+    assetDir: widget.assetDir,
+    size: widget.size,
+    filled: widget.filled,
+  );
 
   @override
   void didChangeDependencies() {
@@ -72,233 +67,104 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
   @override
   void didUpdateWidget(ColoredPreview old) {
     super.didUpdateWidget(old);
-    if (old.assetDir != widget.assetDir ||
-        old.size != widget.size ||
-        !setEquals(old.filled, widget.filled)) {
-      _pending?.cancel();
-      if (!TickerMode.valuesOf(context).enabled) {
-        _stale = true;
-        return;
-      }
-      // A burst of taps while coloring would otherwise build a preview for
-      // every one of them; the last state is the only one worth having.
-      _pending = Timer(
-        const Duration(milliseconds: 150),
-        () => setState(_request),
-      );
+    if (old.assetDir == widget.assetDir &&
+        old.size == widget.size &&
+        setEquals(old.filled, widget.filled)) {
+      return;
     }
+    _pending?.cancel();
+    if (!TickerMode.valuesOf(context).enabled) {
+      _stale = true;
+      return;
+    }
+    // Only the last of a burst of taps is worth rendering.
+    _pending = Timer(
+      const Duration(milliseconds: 150),
+      () => setState(_request),
+    );
   }
 
   @override
   void dispose() {
     _pending?.cancel();
-    _release(_painted);
-    if (_rendering != _painted) _release(_rendering);
+    _image?.dispose();
     super.dispose();
   }
 
-  void _release(PreviewKey? key) {
-    if (key == null) return;
-    _cache.release(key);
-  }
-
-  /// Asks the cache for the preview; whatever is on screen stays up until
-  /// the new one is there.
   void _request() {
-    final image = _fromCache();
-    unawaited(_show(image, _rendering));
+    final key = _key;
+    final id = ++_requested;
+    if (_cache.ready(key) case final image?) {
+      _show(id, image);
+      return;
+    }
+    // A sheet or a page opens on the card's preview scaled up, not blank.
+    if (_image == null) {
+      if (_cache.readyAtOtherSize(key) case final image?) _show(id, image);
+    }
+    unawaited(_render(id, key));
   }
 
-  /// Puts [image] up once it is rendered. One that failed leaves the card
-  /// on what it shows.
-  Future<void> _show(Future<ui.Image> image, PreviewKey? rendering) async {
-    final ui.Image rendered;
+  Future<void> _render(int id, PreviewKey key) async {
+    final ui.Image image;
     try {
-      rendered = await image;
+      image = await _cache.preview(key);
     } on Object {
       return;
     }
-    if (!mounted) return;
-    setState(() => _ready = rendered);
-    // The older preview is only let go once the newer one shows.
-    if (_painted != rendering) {
-      _release(_painted);
-      _painted = rendering;
-    }
+    if (!mounted || id < _shown) return image.dispose();
+    setState(() => _show(id, image));
   }
 
-  /// The cache owns the image, so this widget never disposes of it.
-  Future<ui.Image> _fromCache() {
-    final cache = _cache;
-    final key = PreviewKey(
-      assetDir: widget.assetDir,
-      size: widget.size,
-      filled: widget.filled,
-    );
-    cache.retain(key);
-    if (_rendering != _painted) _release(_rendering);
-    _rendering = key;
-    final ready = cache.ready(key);
-    if (ready != null) {
-      _ready = ready;
-      _release(_painted);
-      _painted = key;
-    } else if (_ready == null) {
-      // A sheet or a page opens on the card's preview, scaled up, rather
-      // than on a blank square.
-      final other = cache.readyAtOtherSize(key);
-      if (other != null) {
-        cache.retain(other);
-        _painted = other;
-        _ready = cache.ready(other);
-      }
-    }
-    return coloredPreview(
-      cache,
-      assetDir: widget.assetDir,
-      size: widget.size,
-      filled: widget.filled,
-    );
+  void _show(int id, ui.Image image) {
+    _image?.dispose();
+    _image = image;
+    _shown = id;
   }
 
   @override
   Widget build(BuildContext context) {
-    final ready = _ready;
-    // A preview that is there from the start is drawn as it is; one that
-    // arrives later, or replaces a coarser one, is faded in over the line
-    // art. The line art is what the cards show for untouched pictures and
-    // sits in the image cache at the same width, so it is there at once and
-    // the colors come in over it rather than the whole picture popping
-    // into an empty square.
+    final image = _image;
+    // The colors fade in over the line art rather than an empty square.
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 300),
       switchInCurve: Curves.easeOut,
       switchOutCurve: Curves.easeOut,
-      child: ready == null
+      child: image == null
           ? Image.asset(
               '${widget.assetDir}/lines_thumb.webp',
               key: const ValueKey('lines'),
               cacheWidth: pictureThumbnailWidth(context),
               fit: BoxFit.contain,
               gaplessPlayback: true,
-              // Not cached yet for a picture that was started: its card
-              // never showed the plain line art.
               frameBuilder: fadeInFrame,
             )
-          : RawImage(key: ObjectKey(ready), image: ready, fit: BoxFit.contain),
+          : _OwnImage(key: ObjectKey(image), image: image),
     );
   }
 }
 
-/// The preview of a picture at [size], built only if the cache does not have
-/// it yet. The cache keeps and disposes of the image.
-Future<ui.Image> coloredPreview(
-  PreviewCache cache, {
-  required String assetDir,
-  required int size,
-  required Set<int> filled,
-}) {
-  final key = PreviewKey(assetDir: assetDir, size: size, filled: filled);
-  return cache.of(key, () => _render(cache, assetDir, size, filled));
+/// Paints a clone of [image] of its own, so the preview can let go of [image]
+/// while this one is still fading out.
+class _OwnImage extends StatefulWidget {
+  const _OwnImage({super.key, required this.image});
+
+  final ui.Image image;
+
+  @override
+  State<_OwnImage> createState() => _OwnImageState();
 }
 
-Future<ui.Image> _render(
-  PreviewCache cache,
-  String assetDir,
-  int size,
-  Set<int> filled,
-) async {
-  final small = size <= ColoredPreview.thumbnailSize;
-  final (program, regions, artwork, lines, state) = await (
-    coloringProgram,
-    cache.regionTexture(assetDir),
-    _load('$assetDir/${small ? 'artwork_thumb' : 'artwork'}.webp', size),
-    _load('$assetDir/${small ? 'lines_thumb' : 'lines'}.webp', size),
-    _stateTexture(filled),
-  ).wait;
+class _OwnImageState extends State<_OwnImage> {
+  late final ui.Image _image = widget.image.clone();
 
-  // The shader the coloring view draws with, with nothing selected and no
-  // fill running: colored regions show the artwork, the rest stays clear.
-  final shader = program.fragmentShader();
-  var i = 0;
-  void set(double value) => shader.setFloat(i++, value);
-  set(size.toDouble());
-  set(size.toDouble());
-  set(state.width.toDouble());
-  set(state.height.toDouble());
-  set(-1); // Selected color.
-  set(1); // Stripe width.
-  for (var slot = 0; slot < 8 * 4; slot++) {
-    set(0);
+  @override
+  void dispose() {
+    _image.dispose();
+    super.dispose();
   }
-  shader
-    ..setImageSampler(0, regions)
-    ..setImageSampler(1, state)
-    ..setImageSampler(2, artwork, filterQuality: FilterQuality.medium);
 
-  final bounds = Offset.zero & Size.square(size.toDouble());
-  final recorder = ui.PictureRecorder();
-  ui.Canvas(recorder)
-    ..drawRect(bounds, Paint()..color = const Color(0xFFFFFFFF))
-    ..drawRect(bounds, Paint()..shader = shader)
-    ..drawImage(lines, Offset.zero, Paint());
-  final picture = recorder.endRecording();
-  final image = await picture.toImage(size, size);
-  picture.dispose();
-  shader.dispose();
-  regions.dispose();
-  artwork.dispose();
-  lines.dispose();
-  state.dispose();
-  return image;
-}
-
-/// Regions per row of the state texture.
-const _stateWidth = 1024;
-
-/// The state texture the shader reads, one texel per region: R is set for a
-/// colored one. It only reaches the last colored region, plus a row left
-/// empty: the shader reads past the texture as its edge, so every region
-/// beyond lands on that row and stays white.
-Future<ui.Image> _stateTexture(Set<int> filled) {
-  final last = filled.fold(0, (last, id) => id > last ? id : last);
-  final height = last ~/ _stateWidth + 2;
-  final bytes = Uint8List(_stateWidth * height * 4);
-  for (var i = 3; i < bytes.length; i += 4) {
-    bytes[i] = 255;
-  }
-  for (final id in filled) {
-    bytes[id * 4] = 255;
-  }
-  return decodePixels(bytes, _stateWidth, height);
-}
-
-/// The region map keeps its own resolution: scaling it would blend the region
-/// numbers stored in its pixels into numbers of other regions.
-Future<ui.Image> loadRegionMap(String assetDir) =>
-    _load('$assetDir/regions.png', null);
-
-Future<ui.Image> _load(String asset, int? size) async {
-  final data = await rootBundle.load(asset);
-  final codec = await ui.instantiateImageCodec(
-    data.buffer.asUint8List(),
-    targetWidth: size,
-    targetHeight: size,
-  );
-  final frame = await codec.getNextFrame();
-  codec.dispose();
-  return frame.image;
-}
-
-/// An image from raw RGBA pixels: an upload rather than a decode.
-Future<ui.Image> decodePixels(Uint8List pixels, int width, int height) {
-  final done = Completer<ui.Image>();
-  ui.decodeImageFromPixels(
-    pixels,
-    width,
-    height,
-    ui.PixelFormat.rgba8888,
-    done.complete,
-  );
-  return done.future;
+  @override
+  Widget build(BuildContext context) =>
+      RawImage(image: _image, fit: BoxFit.contain);
 }

@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 
 import 'package:happy_color/features/coloring/domain/entities/coloring_picture.dart';
-import 'package:happy_color/features/coloring/presentation/widgets/colored_preview.dart';
+import 'package:happy_color/features/coloring/presentation/rendering/picture_images.dart';
 
 class ColoringController extends ChangeNotifier {
   ColoringController({
@@ -33,9 +33,7 @@ class ColoringController extends ChangeNotifier {
     _uploadState();
   }
 
-  /// Called whenever one more region is filled, with every colored region.
-  /// The set is live: it is the controller's own and changes with the next
-  /// fill, so it is copied if kept.
+  /// Called after every fill with the live set of colored regions.
   final void Function(Set<int> filled)? onFilledChanged;
 
   static const _empty = 0, _animating = 1, _filled = 2;
@@ -58,17 +56,14 @@ class ColoringController extends ChangeNotifier {
   final _filledRegions = <int>{};
   late final List<int> _filledByColor;
 
-  /// Bumped once per finished fill, for the palette to follow progress
-  /// without hearing about every animation start.
+  /// Bumped once per finished fill.
   final fills = ValueNotifier<int>(0);
 
   bool isEmpty(int regionId) => _state[regionId] == _empty;
 
-  /// Every colored region, live.
   late final Set<int> filledRegions = UnmodifiableSetView(_filledRegions);
 
-  /// Share of the regions of a color that are filled, counted as they fill
-  /// rather than by going over the regions.
+  /// Share of the regions of a color that are filled.
   double progress(int colorIndex) =>
       _filledByColor[colorIndex] / picture.regionsByColor[colorIndex].length;
 
@@ -175,7 +170,6 @@ class FillAnimations extends ChangeNotifier {
     _ticker = vsync.createTicker(_tick);
   }
 
-  /// Fills the shader can animate at the same time.
   static const slots = 8;
   static const duration = Duration(milliseconds: 650);
   static const curve = Curves.easeOutCubic;
@@ -188,7 +182,7 @@ class FillAnimations extends ChangeNotifier {
   final bySlot = List<ActiveFill?>.filled(slots, null);
   var _elapsed = Duration.zero;
 
-  /// Starts a fill and returns its slot, or null when all slots are busy.
+  /// Returns the fill's slot, or null when all are busy.
   int? start(int regionId, Offset origin, double maxRadius) {
     final slot = bySlot.indexWhere((fill) => fill == null);
     if (slot < 0) return null;

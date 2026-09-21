@@ -11,8 +11,7 @@ import 'package:happy_color/features/library/presentation/widgets/banner_card.da
 import 'package:happy_color/features/progress/presentation/providers/progress_providers.dart';
 
 /// Warms up what the first screens show, so they do not appear empty and then
-/// fill in. Only the first cards of a grid are worth warming: the rest are
-/// loaded by the time the user scrolls to them.
+/// fill in.
 class Startup {
   const Startup(this.ref);
 
@@ -23,16 +22,12 @@ class Startup {
 
   static const _cards = 6;
 
-  /// What the app opens on: the feed of pictures being colored. The splash
-  /// screen waits for this and nothing else.
+  /// The feed the app opens on; the splash screen waits for it.
   Future<void> warmUp(BuildContext context) =>
       _feed(context).timeout(timeout, onTimeout: () {});
 
-  /// What the screens after that show: the library and the coloring page.
-  /// Runs behind the feed once it is up.
+  /// The library and the coloring page, once the feed is up.
   Future<void> warmUpBehind(BuildContext context) async {
-    // The shader is read from the bundle once; the coloring page finds it
-    // ready, unless the feed's previews have read it already.
     coloringProgram.ignore();
     await Future.wait([
       _banners(context, BannerCard.cacheWidth(context)),
@@ -40,8 +35,6 @@ class Startup {
     ]);
   }
 
-  /// The previews of the pictures being colored, or the illustration of the
-  /// empty feed when there are none.
   Future<void> _feed(BuildContext context) async {
     final progress = await ref.read(progressProvider.future);
     if (!context.mounted) return;
@@ -59,16 +52,16 @@ class Startup {
     }
     await Future.wait([
       for (final picture in started)
-        coloredPreview(
-          cache,
-          assetDir: picture.assetDir,
-          size: ColoredPreview.cardSize,
-          filled: picture.filled,
+        cache.warm(
+          PreviewKey(
+            assetDir: picture.assetDir,
+            size: ColoredPreview.cardSize,
+            filled: picture.filled,
+          ),
         ),
     ]);
   }
 
-  /// Library opens on its banners, and they are the largest images around.
   Future<void> _banners(BuildContext context, int width) async {
     final banners = await ref.read(libraryBannersProvider.future);
     if (!context.mounted) return;
@@ -79,9 +72,8 @@ class Startup {
     ]);
   }
 
-  /// The first cards of the library, and the lists of every category: a
-  /// category whose list is not there yet would show a spinner in place of
-  /// the grid for a frame, and the cards would not cross-fade.
+  /// Every category's list too: one not loaded yet shows a spinner for a
+  /// frame, and its cards do not cross-fade.
   Future<void> _libraryCards(BuildContext context) async {
     final categories = await ref.read(libraryCategoriesProvider.future);
     for (final category in categories) {

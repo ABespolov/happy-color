@@ -2,14 +2,13 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/features/coloring/domain/entities/coloring_picture.dart';
 import 'package:happy_color/features/coloring/presentation/painters/coloring_canvas_painter.dart';
+import 'package:happy_color/features/coloring/presentation/rendering/picture_images.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/preview_cache.dart';
 
-/// Everything the coloring view draws with: the picture, the shader and the
-/// three textures. Owned by whoever took it from [ColoringSceneLoader].
+/// Everything the coloring view draws with.
 class ColoringScene {
   const ColoringScene({
     required this.picture,
@@ -32,8 +31,6 @@ class ColoringScene {
     lines.dispose();
   }
 
-  /// Disposes of [scene] once it has loaded; one that failed to load holds
-  /// nothing.
   static Future<void> disposeLoaded(Future<ColoringScene> scene) async {
     try {
       (await scene).dispose();
@@ -49,25 +46,22 @@ final coloringSceneLoaderProvider = Provider<ColoringSceneLoader>((ref) {
   return loader;
 });
 
-/// Loads a scene, and can start on one ahead of time: the sheet that offers
-/// to continue a picture warms its scene up, so the coloring page opens on
-/// textures that are already decoded.
+/// Loads a scene, and can start on one ahead of time so the coloring page
+/// opens on textures that are already decoded.
 class ColoringSceneLoader {
   ColoringSceneLoader(this._previews);
 
   final PreviewCache _previews;
 
-  /// The one scene loaded ahead of time, and the folder it is for.
   (String, Future<ColoringScene>)? _warmed;
 
-  /// Starts loading the scene of [assetDir] unless it is on its way already.
   void warm(String assetDir) {
     if (_warmed?.$1 == assetDir) return;
     _dropWarmed();
     _warmed = (assetDir, _load(assetDir));
   }
 
-  /// The scene of [assetDir], warmed up or loaded now. The caller owns it.
+  /// The caller owns the scene.
   Future<ColoringScene> take(String assetDir) {
     final warmed = _warmed;
     if (warmed != null && warmed.$1 == assetDir) {
@@ -77,7 +71,6 @@ class ColoringSceneLoader {
     return _load(assetDir);
   }
 
-  /// A scene warmed up for a picture that was never opened is let go.
   void _dropWarmed() {
     if (_warmed case (_, final scene)?) {
       unawaited(ColoringScene.disposeLoaded(scene));
@@ -91,11 +84,10 @@ class ColoringSceneLoader {
     final (program, json, regions, artwork, lines) = await (
       coloringProgram,
       rootBundle.loadString('$dir/picture.json'),
-      // The previews of this picture share the region map texture, so it
-      // is decoded once for both.
+      // Shared with the previews.
       _previews.regionTexture(dir),
-      _image('$dir/artwork.webp'),
-      _image('$dir/lines.webp'),
+      loadImage('$dir/artwork.webp'),
+      loadImage('$dir/lines.webp'),
     ).wait;
     final regionBytes = (await regions.toByteData())!;
     return ColoringScene(
@@ -110,10 +102,5 @@ class ColoringSceneLoader {
       artwork: artwork,
       lines: lines,
     );
-  }
-
-  static Future<ui.Image> _image(String asset) async {
-    final bytes = await rootBundle.load(asset);
-    return decodeImageFromList(bytes.buffer.asUint8List());
   }
 }
