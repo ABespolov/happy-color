@@ -2,6 +2,11 @@
 
 Color-by-number prototype in Flutter.
 
+<p>
+  <img src="docs/screenshots/library.png" width="300" alt="Library">
+  <img src="docs/screenshots/coloring.png" width="300" alt="Coloring a picture">
+</p>
+
 ## Pictures
 
 Every picture is a folder in `assets/pictures/<category>/` built by `tools/generate_picture.py` from AI line art and its colored version:
