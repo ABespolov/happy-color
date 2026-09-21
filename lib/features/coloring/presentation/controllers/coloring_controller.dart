@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:collection';
 import 'dart:ui' as ui;
 
@@ -6,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 
 import 'package:happy_color/features/coloring/domain/entities/coloring_picture.dart';
+import 'package:happy_color/features/coloring/presentation/widgets/colored_preview.dart';
 
 class ColoringController extends ChangeNotifier {
   ColoringController({
@@ -115,26 +117,25 @@ class ColoringController extends ChangeNotifier {
     }
   }
 
-  void _uploadState() {
+  void _uploadState() => unawaited(_upload());
+
+  Future<void> _upload() async {
     final version = ++_uploadVersion;
-    ui.decodeImageFromPixels(
+    final image = await decodePixels(
       Uint8List.fromList(_stateBytes),
       stateWidth,
       stateHeight,
-      ui.PixelFormat.rgba8888,
-      (image) {
-        if (version != _uploadVersion || _disposed) {
-          image.dispose();
-          return;
-        }
-        final old = stateImage.value;
-        stateImage.value = image;
-        old?.dispose();
-        // Slots of fills that finished can be reused only once the shader
-        // sees those regions as filled.
-        animations.releaseFinished();
-      },
     );
+    if (version != _uploadVersion || _disposed) {
+      image.dispose();
+      return;
+    }
+    final old = stateImage.value;
+    stateImage.value = image;
+    old?.dispose();
+    // Slots of fills that finished can be reused only once the shader sees
+    // those regions as filled.
+    animations.releaseFinished();
   }
 
   var _disposed = false;

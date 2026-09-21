@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
@@ -29,6 +30,16 @@ class ColoringScene {
     regionMap.dispose();
     artwork.dispose();
     lines.dispose();
+  }
+
+  /// Disposes of [scene] once it has loaded; one that failed to load holds
+  /// nothing.
+  static Future<void> disposeLoaded(Future<ColoringScene> scene) async {
+    try {
+      (await scene).dispose();
+    } on Object {
+      return;
+    }
   }
 }
 
@@ -68,7 +79,9 @@ class ColoringSceneLoader {
 
   /// A scene warmed up for a picture that was never opened is let go.
   void _dropWarmed() {
-    _warmed?.$2.then((scene) => scene.dispose()).ignore();
+    if (_warmed case (_, final scene)?) {
+      unawaited(ColoringScene.disposeLoaded(scene));
+    }
     _warmed = null;
   }
 

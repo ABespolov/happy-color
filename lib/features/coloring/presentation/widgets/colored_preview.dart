@@ -106,16 +106,25 @@ class _ColoredPreviewState extends ConsumerState<ColoredPreview> {
   /// the new one is there.
   void _request() {
     final image = _fromCache();
-    final rendering = _rendering;
-    image.then((image) {
-      if (!mounted) return;
-      setState(() => _ready = image);
-      // The older preview is only let go once the newer one shows.
-      if (_painted != rendering) {
-        _release(_painted);
-        _painted = rendering;
-      }
-    }).ignore();
+    unawaited(_show(image, _rendering));
+  }
+
+  /// Puts [image] up once it is rendered. One that failed leaves the card
+  /// on what it shows.
+  Future<void> _show(Future<ui.Image> image, PreviewKey? rendering) async {
+    final ui.Image rendered;
+    try {
+      rendered = await image;
+    } on Object {
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _ready = rendered);
+    // The older preview is only let go once the newer one shows.
+    if (_painted != rendering) {
+      _release(_painted);
+      _painted = rendering;
+    }
   }
 
   /// The cache owns the image, so this widget never disposes of it.

@@ -57,7 +57,7 @@ class _ColoringPageState extends ConsumerState<ColoringPage> {
   void dispose() {
     if (_save != null) _flush();
     _warmCardPreview();
-    _scene.then((scene) => scene.dispose());
+    unawaited(ColoringScene.disposeLoaded(_scene));
     super.dispose();
   }
 

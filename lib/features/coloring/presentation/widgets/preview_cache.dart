@@ -101,11 +101,23 @@ class PreviewCache {
       }
     }
     final map = _regionMaps[assetDir] = cached ?? loadRegionMap(assetDir);
-    return map.then((image) => image.clone());
+    return _clone(map);
   }
 
+  static Future<ui.Image> _clone(Future<ui.Image> image) async =>
+      (await image).clone();
+
   void _disposeRegionMap(String assetDir) {
-    _regionMaps.remove(assetDir)?.then((image) => image.dispose()).ignore();
+    final map = _regionMaps.remove(assetDir);
+    if (map != null) unawaited(_disposeLoaded(map));
+  }
+
+  static Future<void> _disposeLoaded(Future<ui.Image> image) async {
+    try {
+      (await image).dispose();
+    } on Object {
+      // Nothing was loaded, so there is nothing to let go of.
+    }
   }
 
   /// Region maps are a few megabytes each, so only a handful are kept.
@@ -120,22 +132,21 @@ class PreviewCache {
     final image = render();
     _entries[key] = image;
     _bytes += key.size * key.size * 4;
-    unawaited(
-      image
-          .then<void>((rendered) {
-            // A preview dropped while it was rendering is not worth keeping.
-            if (_entries[key] == image) _ready[key] = rendered;
-          })
-          .catchError((Object _) {}),
-    );
-    unawaited(
-      image.catchError((Object error) {
-        _drop(key);
-        throw error;
-      }),
-    );
+    unawaited(_settle(key, image));
     _evict();
     return image;
+  }
+
+  /// Marks [image] ready once it is rendered, or drops it if it fails, so
+  /// the next request renders it again.
+  Future<void> _settle(PreviewKey key, Future<ui.Image> image) async {
+    try {
+      final rendered = await image;
+      // A preview dropped while it was rendering is not worth keeping.
+      if (_entries[key] == image) _ready[key] = rendered;
+    } on Object {
+      if (_entries[key] == image) _drop(key);
+    }
   }
 
   void _evict() {
@@ -155,15 +166,18 @@ class PreviewCache {
 
   void _dispose(PreviewKey key) {
     final image = _disposeWhenFree.remove(key);
-    if (image == null) return;
-    // The card may still be painting it, so let the frame finish first.
-    image
-        .then(
-          (image) => WidgetsBinding.instance.addPostFrameCallback(
-            (_) => image.dispose(),
-          ),
-        )
-        .catchError((Object _) {});
+    if (image != null) unawaited(_disposeAfterFrame(image));
+  }
+
+  /// The card may still be painting it, so the frame is let finish first.
+  static Future<void> _disposeAfterFrame(Future<ui.Image> image) async {
+    final ui.Image rendered;
+    try {
+      rendered = await image;
+    } on Object {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => rendered.dispose());
   }
 
   void clear() {
