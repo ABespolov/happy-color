@@ -3,8 +3,9 @@
 Color-by-number prototype in Flutter.
 
 <p>
-  <img src="docs/screenshots/library.png" width="300" alt="Library">
-  <img src="docs/screenshots/coloring.png" width="300" alt="Coloring a picture">
+  <img src="docs/screenshots/library.png" width="260" alt="Library">
+  <img src="docs/screenshots/cities.png" width="260" alt="Colored cities">
+  <img src="docs/screenshots/ramen.png" width="260" alt="A colored picture">
 </p>
 
 ## Pictures
