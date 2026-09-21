@@ -8,7 +8,6 @@ class CircleIconButton extends StatelessWidget {
     required this.icon,
     required this.onTap,
     this.iconSize = 18,
-    this.size = 44,
     this.background = Colors.white,
     this.elevation = 2,
     this.iconColor = AppColors.ink,
@@ -29,7 +28,6 @@ class CircleIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final double iconSize;
-  final double size;
   final Color background;
   final double elevation;
   final Color iconColor;
@@ -57,7 +55,7 @@ class CircleIconButton extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: SizedBox.square(
-            dimension: size,
+            dimension: 44,
             child: Icon(icon, size: iconSize, color: iconColor),
           ),
         ),

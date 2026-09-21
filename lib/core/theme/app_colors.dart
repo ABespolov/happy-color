@@ -19,7 +19,6 @@ abstract final class AppColors {
   static const tabBarShadow = Color(0x1A1F2A44);
   static const tabLabelSelected = Color(0xFF4F74C9);
   static const tabLabel = Color(0xFF6B7080);
-  static const iconShadow = Color(0xFFD6DCE8);
 
   static const indicatorActive = Color(0xFF7F90AF);
   static const indicatorInactive = Color(0xFFB7C3D6);
