@@ -50,7 +50,7 @@ class PictureTile extends ConsumerWidget {
                     ColoredPreview(
                       assetDir: assetDir,
                       filled: filled,
-                      size: 400,
+                      cacheWidth: pictureThumbnailWidth(context),
                     ),
                   _ => Image.asset(
                     '$assetDir/'

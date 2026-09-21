@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/core/widgets/picture_thumbnail.dart';
 import 'package:happy_color/features/coloring/presentation/painters/coloring_canvas_painter.dart';
-import 'package:happy_color/features/coloring/presentation/widgets/colored_preview.dart';
-import 'package:happy_color/features/coloring/presentation/widgets/preview_cache.dart';
+import 'package:happy_color/features/coloring/presentation/rendering/preview_store.dart';
+import 'package:happy_color/features/progress/domain/entities/picture_progress.dart';
 import 'package:happy_color/features/library/presentation/providers/library_providers.dart';
 import 'package:happy_color/features/library/presentation/widgets/banner_card.dart';
 import 'package:happy_color/features/progress/presentation/providers/progress_providers.dart';
@@ -38,7 +38,7 @@ class Startup {
   Future<void> _feed(BuildContext context) async {
     final progress = await ref.read(progressProvider.future);
     if (!context.mounted) return;
-    final cache = ref.read(previewCacheProvider);
+    final previews = ref.read(previewStoreProvider);
     final started = progress.values
         .where((p) => p.isStarted && !p.isCompleted)
         .take(_cards)
@@ -50,16 +50,23 @@ class Startup {
       );
       return;
     }
+    final width = pictureThumbnailWidth(context);
     await Future.wait([
       for (final picture in started)
-        cache.warm(
-          PreviewKey(
-            assetDir: picture.assetDir,
-            size: ColoredPreview.cardSize,
-            filled: picture.filled,
-          ),
-        ),
+        _cardPreview(context, previews, picture, width),
     ]);
+  }
+
+  /// Rendered only if it was never saved, then decoded at the card's width.
+  Future<void> _cardPreview(
+    BuildContext context,
+    PreviewStore previews,
+    PictureProgress picture,
+    int width,
+  ) async {
+    final file = await previews.save(picture.assetDir, picture.filled);
+    if (!context.mounted) return;
+    await precacheImage(ResizeImage(FileImage(file), width: width), context);
   }
 
   Future<void> _banners(BuildContext context, int width) async {

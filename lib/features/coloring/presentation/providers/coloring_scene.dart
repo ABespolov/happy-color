@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/features/coloring/domain/entities/coloring_picture.dart';
 import 'package:happy_color/features/coloring/presentation/painters/coloring_canvas_painter.dart';
 import 'package:happy_color/features/coloring/presentation/rendering/picture_images.dart';
-import 'package:happy_color/features/coloring/presentation/widgets/preview_cache.dart';
+import 'package:happy_color/features/coloring/presentation/rendering/preview_store.dart';
 
 /// Everything the coloring view draws with.
 class ColoringScene {
@@ -41,7 +41,7 @@ class ColoringScene {
 }
 
 final coloringSceneLoaderProvider = Provider<ColoringSceneLoader>((ref) {
-  final loader = ColoringSceneLoader(ref.read(previewCacheProvider));
+  final loader = ColoringSceneLoader(ref.read(previewStoreProvider));
   ref.onDispose(loader.dispose);
   return loader;
 });
@@ -51,7 +51,7 @@ final coloringSceneLoaderProvider = Provider<ColoringSceneLoader>((ref) {
 class ColoringSceneLoader {
   ColoringSceneLoader(this._previews);
 
-  final PreviewCache _previews;
+  final PreviewStore _previews;
 
   (String, Future<ColoringScene>)? _warmed;
 

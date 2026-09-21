@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_color/app/app.dart';
+import 'package:happy_color/features/coloring/presentation/rendering/preview_store.dart';
 import 'package:happy_color/features/progress/presentation/providers/progress_providers.dart';
 
 /// Outlines every repaint in debug builds.
@@ -19,13 +20,17 @@ Future<void> main() async {
   PaintingBinding.instance.imageCache.maximumSizeBytes = 160 << 20;
 
   // Waited for together: the native splash stays up until runApp.
-  final (_, progress) = await (
+  final (_, progress, previews) = await (
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge),
     createProgressRepository(),
+    createPreviewStore(),
   ).wait;
   runApp(
     ProviderScope(
-      overrides: [progressRepositoryProvider.overrideWithValue(progress)],
+      overrides: [
+        progressRepositoryProvider.overrideWithValue(progress),
+        previewStoreProvider.overrideWithValue(previews),
+      ],
       child: const HappyColorApp(),
     ),
   );

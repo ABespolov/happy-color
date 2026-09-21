@@ -2,23 +2,28 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 
-/// Completes once the route of [context] has finished coming in. One-off
-/// work that stalls a frame, like a first shader draw or a big render, is
-/// put off until then so it does not land in the middle of the transition.
+/// Completes once the route of [context] is neither coming in nor being
+/// uncovered by a route above it going away. One-off work that stalls a
+/// frame, like a first shader draw or a big render, is put off until then so
+/// it does not land in the middle of a transition.
 ///
 /// Reads the route, so it is called from `didChangeDependencies` or later.
-Future<void> routeSettled(BuildContext context) {
-  final animation = ModalRoute.of(context)?.animation;
-  if (animation == null || animation.status != AnimationStatus.forward) {
-    return Future.value();
+Future<void> routeSettled(BuildContext context) async {
+  final route = ModalRoute.of(context);
+  if (route == null) return;
+  for (final animation in [route.animation, route.secondaryAnimation]) {
+    if (animation != null && animation.isAnimating) await _stopped(animation);
   }
-  final settled = Completer<void>();
+}
+
+Future<void> _stopped(Animation<double> animation) {
+  final stopped = Completer<void>();
   void listener(AnimationStatus status) {
-    if (status == AnimationStatus.forward) return;
+    if (status.isAnimating) return;
     animation.removeStatusListener(listener);
-    settled.complete();
+    stopped.complete();
   }
 
   animation.addStatusListener(listener);
-  return settled.future;
+  return stopped.future;
 }

@@ -8,7 +8,7 @@ import 'package:happy_color/features/progress/presentation/providers/progress_pr
 import 'package:happy_color/features/coloring/presentation/providers/coloring_scene.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/color_palette.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/colored_preview.dart';
-import 'package:happy_color/features/coloring/presentation/widgets/preview_cache.dart';
+import 'package:happy_color/features/coloring/presentation/rendering/preview_store.dart';
 import 'package:happy_color/features/coloring/presentation/widgets/coloring_view.dart';
 import 'package:happy_color/l10n/app_localizations.dart';
 
@@ -30,13 +30,13 @@ class _ColoringPageState extends ConsumerState<ColoringPage>
       .read(coloringSceneLoaderProvider)
       .take(widget.assetDir);
 
-  /// `ref` cannot be read in [dispose], where the card preview is warmed up.
-  late final PreviewCache _previews;
+  /// `ref` cannot be read in [dispose], where the preview is saved.
+  late final PreviewStore _previews;
 
   @override
   void initState() {
     super.initState();
-    _previews = ref.read(previewCacheProvider);
+    _previews = ref.read(previewStoreProvider);
   }
 
   /// The scene, held back until the page has slid in: its first frame
@@ -75,23 +75,16 @@ class _ColoringPageState extends ConsumerState<ColoringPage>
   /// What was colored at the last save.
   Set<int> _lastSaved = const {};
 
-  void _warmCardPreview() {
+  /// Once the page has gone, so the render does not share its frames.
+  void _savePreview() {
     if (_lastSaved.isEmpty) return;
-    _previews
-        .warm(
-          PreviewKey(
-            assetDir: widget.assetDir,
-            size: ColoredPreview.cardSize,
-            filled: _lastSaved,
-          ),
-        )
-        .ignore();
+    _previews.save(widget.assetDir, _lastSaved).ignore();
   }
 
   @override
   void dispose() {
     if (_save != null) _flush();
-    _warmCardPreview();
+    _savePreview();
     unawaited(ColoringScene.disposeLoaded(_scene));
     _cover.dispose();
     super.dispose();
@@ -205,11 +198,7 @@ class _Loading extends StatelessWidget {
             child: Center(
               child: AspectRatio(
                 aspectRatio: 1,
-                child: ColoredPreview(
-                  assetDir: assetDir,
-                  filled: filled,
-                  size: ColoredPreview.thumbnailSize,
-                ),
+                child: ColoredPreview(assetDir: assetDir, filled: filled),
               ),
             ),
           ),
