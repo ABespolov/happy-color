@@ -59,7 +59,7 @@ class _ColoringPageState extends ConsumerState<ColoringPage>
   /// The preview over the view, faded out once the view is ready.
   late final _cover = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 450),
+    duration: const Duration(milliseconds: 250),
     value: 1,
   );
 
